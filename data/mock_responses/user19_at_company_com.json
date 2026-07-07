@@ -1,0 +1,36 @@
+{
+  "code": 0,
+  "message": "success",
+  "request_id": "req_mock_user19_at_company_com",
+  "data": {
+    "items": [
+      {
+        "email": "user19@company.com",
+        "model_usage": [
+          {
+            "model_name": "GLM-5",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 351737,
+              "output_tokens": 255496
+            }
+          },
+          {
+            "model_name": "Doubao-Seed-Code",
+            "model_type": "CUE",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 283713,
+              "output_tokens": 70369
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "_meta": {
+    "generated_at": "2026-06-29T09:53:07.942383+00:00",
+    "source": "scripts/gen_mocks.py"
+  }
+}

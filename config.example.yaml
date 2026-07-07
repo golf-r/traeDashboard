@@ -1,0 +1,122 @@
+# Trae Enterprise OpenAPI configuration
+# Copy this to config.yaml and fill in your details
+
+# Base URL of the OpenAPI (ask your admin if unsure)
+openapi_base: https://openapi.enterprise.trae.cn
+
+# Authentication endpoint (relative to openapi_base)
+auth_endpoint: /openapi/v1/auth/access_token
+
+# Environment variable names for credentials
+app_id_env: TRAE_APP_ID
+app_secret_env: TRAE_APP_SECRET
+
+# Local SQLite database path
+db_path: data/dashboard.db
+
+# How often (minutes) to fetch fresh data
+fetch_interval_minutes: 60
+
+# Per-account monthly token quota (50M default).
+# Company total = per_account_quota * number of accounts.
+per_account_quota: 50000000
+
+# Strict-match allowlist of official model names (default = built-in list).
+# Rows whose API `model_name` is not in this list are not persisted by the
+# collector and are ignored by dashboard reads. Strict matching: no case
+# folding, no alias normalization. Use the exact API model_name strings.
+included_model_names:
+  - GLM-5.1
+  - GLM-5-Turbo
+  - DeepSeek-V4-Pro
+  - Doubao-Seed-Code
+  - GLM-5V-Turbo
+  - Doubao-Seed-2.1-Pro
+  - Doubao-Seed-2.1-Turbo
+  - Doubao-Seed-2.0-Code
+  - GLM-5.2
+  - GLM-5
+  - GLM-4.7
+  - MiniMax-M3
+  - MiniMax-M2.7
+  - Qwen3.7-Plus
+  - Qwen3-Coder-Next
+  - Kimi-K2.7-Code
+  - Kimi-K2.6
+  - Kimi-K2.5
+  - DeepSeek-V4-Flash
+  - DeepSeek-V3.2
+
+# Optional: per-model display-time weight multiplier.
+# Applied on read in storage so DB rows keep raw API values (audit trail
+# intact). Useful when the vendor's admin UI displays a different (e.g.
+# halved) token count for a model than what the API returns.
+# Keys must match the canonical names in `included_model_names` above.
+# Omit this section to use the built-in default (Doubao-Seed-Code: 0.5).
+display_weights:
+  Doubao-Seed-Code: 0.5
+
+# Account list (up to 20)
+accounts:
+  - email: user01@company.com
+    display_name: 账号1
+  - email: user02@company.com
+    display_name: 账号2
+  - email: user03@company.com
+    display_name: 账号3
+  - email: user04@company.com
+    display_name: 账号4
+  - email: user05@company.com
+    display_name: 账号5
+  - email: user06@company.com
+    display_name: 账号6
+  - email: user07@company.com
+    display_name: 账号7
+  - email: user08@company.com
+    display_name: 账号8
+  - email: user09@company.com
+    display_name: 账号9
+  - email: user10@company.com
+    display_name: 账号10
+  - email: user11@company.com
+    display_name: 账号11
+  - email: user12@company.com
+    display_name: 账号12
+  - email: user13@company.com
+    display_name: 账号13
+  - email: user14@company.com
+    display_name: 账号14
+  - email: user15@company.com
+    display_name: 账号15
+  - email: user16@company.com
+    display_name: 账号16
+  - email: user17@company.com
+    display_name: 账号17
+  - email: user18@company.com
+    display_name: 账号18
+  - email: user19@company.com
+    display_name: 账号19
+  - email: user20@company.com
+    display_name: 账号20
+
+# ---------------------------------------------------------------------------
+# Daily email report (optional)
+# ---------------------------------------------------------------------------
+# `trae-dashboard report` reads this section. SMTP password is read from
+# the environment variable named by `smtp_password_env` (default
+# SMTP_PASSWORD) — set it in .env, never in this file (which goes to git).
+#
+# `send_time` is informational only — actual scheduling is controlled by
+# Windows Task Scheduler / cron. See README "邮件报告部署".
+# ---------------------------------------------------------------------------
+email:
+  enabled: false
+  smtp_host: smtp.qq.com
+  smtp_port: 465
+  smtp_user: your_email@qq.com
+  smtp_password_env: SMTP_PASSWORD
+  from_addr: your_email@qq.com
+  recipients:
+    - recipient1@example.com
+    - recipient2@example.com
+  send_time: "09:00"

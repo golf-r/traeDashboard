@@ -1,0 +1,45 @@
+{
+  "code": 0,
+  "message": "success",
+  "request_id": "req_mock_user08_at_company_com",
+  "data": {
+    "items": [
+      {
+        "email": "user08@company.com",
+        "model_usage": [
+          {
+            "model_name": "DeepSeek-V4-Pro",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 112477,
+              "output_tokens": 344638
+            }
+          },
+          {
+            "model_name": "Doubao-Seed-2.0-Code",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 208425,
+              "output_tokens": 464828
+            }
+          },
+          {
+            "model_name": "Kimi-K2.6",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 75905,
+              "output_tokens": 139873
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "_meta": {
+    "generated_at": "2026-06-29T09:53:07.938529+00:00",
+    "source": "scripts/gen_mocks.py"
+  }
+}

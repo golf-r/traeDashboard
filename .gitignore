@@ -1,0 +1,49 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+build/
+dist/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.cache
+
+# Runtime data — keep the directory but ignore all runtime artifacts
+# (SQLite db, WAL/SHM, email task log, local preview scripts/HTML, etc.)
+data/*
+!data/.gitkeep
+
+# Secrets
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+
+# User's actual config (contains private emails + credentials in .env)
+config.yaml
+
+# AI agent / IDE assistant state — never commit
+.agents/
+.claude/
+.trae/
+skills-lock.json
+
+# Personal screenshots / PDF notes (Snipaste captures, dashboard snapshots)
+Snipaste_*.png
+dashboard-screenshot.*

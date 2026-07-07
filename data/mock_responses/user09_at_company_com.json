@@ -1,0 +1,36 @@
+{
+  "code": 0,
+  "message": "success",
+  "request_id": "req_mock_user09_at_company_com",
+  "data": {
+    "items": [
+      {
+        "email": "user09@company.com",
+        "model_usage": [
+          {
+            "model_name": "Doubao-Seed-Code",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 471717,
+              "output_tokens": 306939
+            }
+          },
+          {
+            "model_name": "DeepSeek-V4-Pro",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 190790,
+              "output_tokens": 115987
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "_meta": {
+    "generated_at": "2026-06-29T09:53:07.938978+00:00",
+    "source": "scripts/gen_mocks.py"
+  }
+}

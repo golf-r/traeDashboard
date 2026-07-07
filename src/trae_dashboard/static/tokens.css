@@ -1,0 +1,293 @@
+/* ===========================================================================
+   Trae Token Dashboard v2 — Design Tokens
+   ---------------------------------------------------------------------------
+   Single source of truth for colors, spacing, typography, radius, shadow,
+   motion. Includes LIGHT + DARK themes via [data-theme="dark"] override.
+
+   Design principles:
+   - Information-dense (Linear / Vercel / Grafana lineage)
+   - Mono numbers for alignment (JetBrains Mono)
+   - WCAG AA contrast in both themes
+   - Data-viz colors semantically distinct (input / output / total)
+   - State colors: active / idle / error / fetching
+   =========================================================================== */
+
+:root,
+[data-theme="light"] {
+  /* ---- Color: Surfaces (light) ---- */
+  --color-bg:                #F7F8FA;   /* page background                       */
+  --color-bg-elevated:       #FFFFFF;   /* cards / panels                        */
+  --color-surface-1:         #FFFFFF;   /* primary surface                       */
+  --color-surface-2:         #F1F4F9;   /* hover wash, zebra striping            */
+  --color-surface-3:         #E7ECF3;   /* pressed / active rows                 */
+  --color-overlay:           rgba(15, 23, 42, 0.45);
+
+  /* ---- Color: Text (light) ---- */
+  --color-text-primary:      #0F172A;   /* slate-900 — body / data               */
+  --color-text-secondary:    #475569;   /* slate-600 — labels / meta             */
+  --color-text-muted:        #94A3B8;   /* slate-400 — hints / placeholders      */
+  --color-text-inverse:      #FFFFFF;
+
+  /* ---- Color: Borders (light) ---- */
+  --color-border:            #E2E8F0;   /* slate-200 — hairlines                 */
+  --color-border-strong:     #CBD5E1;   /* slate-300 — emphasis                  */
+  --color-border-focus:      #2563EB;   /* accent for focus rings                */
+
+  /* ---- Color: Brand (shared) ---- */
+  --color-accent:            #2563EB;   /* blue-600 — primary brand              */
+  --color-accent-hover:      #1D4ED8;   /* blue-700 — pressed                    */
+  --color-accent-soft:       #DBEAFE;   /* blue-100 — chips / progress track     */
+  --color-accent-soft-2:     #EFF6FF;   /* blue-50  — pale wash                  */
+
+  /* ---- Color: Data-viz (semantic, shared across themes) ---- */
+  --color-input:             #3B82F6;   /* blue-500   — input tokens             */
+  --color-input-soft:        rgba(59, 130, 246, 0.12);
+  --color-output:            #8B5CF6;   /* violet-500 — output tokens            */
+  --color-output-soft:       rgba(139, 92, 246, 0.12);
+  --color-total:             #10B981;   /* emerald-500 — combined total          */
+  --color-total-soft:        rgba(16, 185, 129, 0.10);
+
+  /* ---- Color: Status ---- */
+  --color-status-active:     #10B981;
+  --color-status-active-soft:#D1FAE5;
+  --color-status-idle:       #94A3B8;
+  --color-status-idle-soft:  #F1F5F9;
+  --color-status-error:      #EF4444;
+  --color-status-error-soft: #FEE2E2;
+  --color-status-fetching:   #F59E0B;
+  --color-status-fetching-soft:#FEF3C7;
+
+  /* ---- Color: Sparkline (per-account hue rotation) ---- */
+  /* The sparkline uses --color-input by default; per-row hue comes from
+     inline `style="--row-hue:..."` driven by hash of the email.            */
+  --row-hue: 220;
+
+  /* ---- Header / chrome ---- */
+  --color-header-bg:         rgba(255, 255, 255, 0.78);
+  --color-header-border:     #E2E8F0;
+  --color-backdrop:          blur(12px) saturate(180%);
+
+  /* ---- Spacing (4 / 8 grid) ---- */
+  --space-0:  0px;
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-5:  20px;
+  --space-6:  24px;
+  --space-7:  32px;
+  --space-8:  48px;
+  --space-9:  64px;
+
+  /* ---- Typography ---- */
+  --font-sans: "Microsoft YaHei", "微软雅黑", "PingFang SC",
+               -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Microsoft YaHei", "微软雅黑", "SF Mono", Menlo,
+               Consolas, "Liberation Mono", monospace;
+
+  --font-size-xs:   13px;
+  --font-size-sm:   14px;
+  --font-size-base: 15px;
+  --font-size-md:   15px;
+  --font-size-lg:   17px;
+  --font-size-xl:   22px;
+  --font-size-2xl:  28px;
+  --font-size-3xl:  36px;
+
+  --line-height-tight:  1.2;
+  --line-height-snug:   1.35;
+  --line-height-base:   1.5;
+  --line-height-loose:  1.7;
+
+  --font-weight-regular:  400;
+  --font-weight-medium:   500;
+  --font-weight-semibold: 600;
+  --font-weight-bold:     700;
+
+  --letter-spacing-tight:  -0.01em;
+  --letter-spacing-base:   0;
+  --letter-spacing-wide:   0.04em;
+
+  /* ---- Radius ---- */
+  --radius-sm:   4px;
+  --radius-md:   6px;
+  --radius-lg:   10px;
+  --radius-xl:   14px;
+  --radius-pill: 999px;
+
+  /* ---- Shadow (light) ---- */
+  --shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.04);
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.05),
+               0 1px 3px rgba(15, 23, 42, 0.04);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08),
+               0 2px 4px rgba(15, 23, 42, 0.04);
+  --shadow-lg: 0 10px 32px rgba(15, 23, 42, 0.10),
+               0 4px 8px rgba(15, 23, 42, 0.05);
+  --shadow-focus: 0 0 0 3px rgba(37, 99, 235, 0.20);
+
+  /* ---- Motion ---- */
+  --transition-fast:  120ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base:  180ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow:  240ms cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out:        cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ---- Layout ---- */
+  --max-width:        1440px;
+  --header-height:    60px;
+  --gutter:           24px;
+
+  /* ---- Z-index ---- */
+  --z-header:    50;
+  --z-dropdown:  100;
+  --z-toast:     200;
+  --z-modal:     300;
+}
+
+/* ===========================================================================
+   DARK THEME
+   ---------------------------------------------------------------------------
+   Activated by setting <html data-theme="dark">. Surfaces use slate-900 →
+   slate-800 → slate-700 cascade for depth. Data-viz hues are lifted slightly
+   (toward 400) for AA contrast on dark.
+   =========================================================================== */
+
+[data-theme="dark"] {
+  /* ---- Surfaces (dark) ---- */
+  --color-bg:                #0B1220;   /* page background                       */
+  --color-bg-elevated:       #111A2E;   /* cards / panels                        */
+  --color-surface-1:         #131D33;   /* primary surface                       */
+  --color-surface-2:         #1A2540;   /* hover wash                            */
+  --color-surface-3:         #233056;   /* pressed / active row                  */
+  --color-overlay:           rgba(0, 0, 0, 0.65);
+
+  /* ---- Text (dark) ---- */
+  --color-text-primary:      #E2E8F0;   /* slate-200 — body (better than 50)     */
+  --color-text-secondary:    #94A3B8;   /* slate-400 — meta                      */
+  --color-text-muted:        #94A3B8;   /* slate-400 — hints (lifted from 500 for WCAG AA on dark surfaces) */
+  --color-text-inverse:      #0F172A;
+
+  /* ---- Borders (dark) ---- */
+  --color-border:            #1E293B;   /* slate-800 — hairlines                 */
+  --color-border-strong:     #334155;   /* slate-700 — emphasis                  */
+  --color-border-focus:      #60A5FA;   /* blue-400 — focus ring on dark         */
+
+  /* ---- Brand (slight lift) ---- */
+  --color-accent:            #3B82F6;   /* blue-500 — better on dark             */
+  --color-accent-hover:      #60A5FA;   /* blue-400                              */
+  --color-accent-soft:       rgba(59, 130, 246, 0.18);
+  --color-accent-soft-2:     rgba(59, 130, 246, 0.10);
+
+  /* ---- Data-viz (lifted hues for AA) ---- */
+  --color-input:             #60A5FA;   /* blue-400                              */
+  --color-input-soft:        rgba(96, 165, 250, 0.18);
+  --color-output:            #A78BFA;   /* violet-400                            */
+  --color-output-soft:       rgba(167, 139, 250, 0.18);
+  --color-total:             #34D399;   /* emerald-400                           */
+  --color-total-soft:        rgba(52, 211, 153, 0.16);
+
+  /* ---- Status (dark) ---- */
+  --color-status-active:     #34D399;
+  --color-status-active-soft:rgba(52, 211, 153, 0.16);
+  --color-status-idle:       #64748B;
+  --color-status-idle-soft:  rgba(100, 116, 139, 0.18);
+  --color-status-error:      #F87171;
+  --color-status-error-soft: rgba(248, 113, 113, 0.18);
+  --color-status-fetching:   #FBBF24;
+  --color-status-fetching-soft:rgba(251, 191, 36, 0.18);
+
+  /* ---- Header / chrome (dark) ---- */
+  --color-header-bg:         rgba(11, 18, 32, 0.78);
+  --color-header-border:     #1E293B;
+
+  /* ---- Shadow (dark — much subtler, more glow) ---- */
+  --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.30);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45),
+               0 2px 4px rgba(0, 0, 0, 0.30);
+  --shadow-lg: 0 10px 32px rgba(0, 0, 0, 0.55),
+               0 4px 8px rgba(0, 0, 0, 0.35);
+  --shadow-focus: 0 0 0 3px rgba(96, 165, 250, 0.30);
+}
+
+/* ===========================================================================
+   Auto dark mode via prefers-color-scheme (when user has not set explicit)
+   =========================================================================== */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --color-bg:                #0B1220;
+    --color-bg-elevated:       #111A2E;
+    --color-surface-1:         #131D33;
+    --color-surface-2:         #1A2540;
+    --color-surface-3:         #233056;
+    --color-overlay:           rgba(0, 0, 0, 0.65);
+
+    --color-text-primary:      #E2E8F0;
+    --color-text-secondary:    #94A3B8;
+    --color-text-muted:        #64748B;
+    --color-text-inverse:      #0F172A;
+
+    --color-border:            #1E293B;
+    --color-border-strong:     #334155;
+    --color-border-focus:      #60A5FA;
+
+    --color-accent:            #3B82F6;
+    --color-accent-hover:      #60A5FA;
+    --color-accent-soft:       rgba(59, 130, 246, 0.18);
+    --color-accent-soft-2:     rgba(59, 130, 246, 0.10);
+
+    --color-input:             #60A5FA;
+    --color-input-soft:        rgba(96, 165, 250, 0.18);
+    --color-output:            #A78BFA;
+    --color-output-soft:       rgba(167, 139, 250, 0.18);
+    --color-total:             #34D399;
+    --color-total-soft:        rgba(52, 211, 153, 0.16);
+
+    --color-status-active:     #34D399;
+    --color-status-active-soft:rgba(52, 211, 153, 0.16);
+    --color-status-idle:       #64748B;
+    --color-status-idle-soft:  rgba(100, 116, 139, 0.18);
+    --color-status-error:      #F87171;
+    --color-status-error-soft: rgba(248, 113, 113, 0.18);
+    --color-status-fetching:   #FBBF24;
+    --color-status-fetching-soft:rgba(251, 191, 36, 0.18);
+
+    --color-header-bg:         rgba(11, 18, 32, 0.78);
+    --color-header-border:     #1E293B;
+
+    --shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.30);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45),
+                 0 2px 4px rgba(0, 0, 0, 0.30);
+    --shadow-lg: 0 10px 32px rgba(0, 0, 0, 0.55),
+                 0 4px 8px rgba(0, 0, 0, 0.35);
+    --shadow-focus: 0 0 0 3px rgba(96, 165, 250, 0.30);
+  }
+}
+
+/* ===========================================================================
+   Skeleton shimmer (used by KPI / row placeholders)
+   =========================================================================== */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--color-surface-2) 0%,
+    var(--color-surface-3) 50%,
+    var(--color-surface-2) 100%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s linear infinite;
+  border-radius: var(--radius-sm);
+  color: transparent !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}

@@ -1,0 +1,36 @@
+{
+  "code": 0,
+  "message": "success",
+  "request_id": "req_mock_user02_at_company_com",
+  "data": {
+    "items": [
+      {
+        "email": "user02@company.com",
+        "model_usage": [
+          {
+            "model_name": "Doubao-Seed-Code",
+            "model_type": "CUE",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 376400,
+              "output_tokens": 341726
+            }
+          },
+          {
+            "model_name": "Doubao-Seed-2.0-Code",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 116574,
+              "output_tokens": 236514
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "_meta": {
+    "generated_at": "2026-06-29T09:53:07.935605+00:00",
+    "source": "scripts/gen_mocks.py"
+  }
+}

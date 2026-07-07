@@ -1,0 +1,45 @@
+{
+  "code": 0,
+  "message": "success",
+  "request_id": "req_mock_user16_at_company_com",
+  "data": {
+    "items": [
+      {
+        "email": "user16@company.com",
+        "model_usage": [
+          {
+            "model_name": "GLM-5",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 112043,
+              "output_tokens": 488018
+            }
+          },
+          {
+            "model_name": "Doubao-Seed-Code",
+            "model_type": "CUE",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 374790,
+              "output_tokens": 164429
+            }
+          },
+          {
+            "model_name": "Kimi-K2.6",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 353157,
+              "output_tokens": 341723
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "_meta": {
+    "generated_at": "2026-06-29T09:53:07.941495+00:00",
+    "source": "scripts/gen_mocks.py"
+  }
+}

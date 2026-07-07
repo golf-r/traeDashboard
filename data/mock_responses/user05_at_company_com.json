@@ -1,0 +1,54 @@
+{
+  "code": 0,
+  "message": "success",
+  "request_id": "req_mock_user05_at_company_com",
+  "data": {
+    "items": [
+      {
+        "email": "user05@company.com",
+        "model_usage": [
+          {
+            "model_name": "DeepSeek-V4-Pro",
+            "model_type": "CUE",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 347692,
+              "output_tokens": 120484
+            }
+          },
+          {
+            "model_name": "Doubao-Seed-Code",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 42833,
+              "output_tokens": 449432
+            }
+          },
+          {
+            "model_name": "GLM-5",
+            "model_type": "CUE",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 455286,
+              "output_tokens": 53953
+            }
+          },
+          {
+            "model_name": "Doubao-Seed-2.0-Code",
+            "model_type": "Chat",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 146738,
+              "output_tokens": 238717
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "_meta": {
+    "generated_at": "2026-06-29T09:53:07.937014+00:00",
+    "source": "scripts/gen_mocks.py"
+  }
+}

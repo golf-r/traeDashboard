@@ -1,0 +1,36 @@
+{
+  "code": 0,
+  "message": "success",
+  "request_id": "req_mock_user10_at_company_com",
+  "data": {
+    "items": [
+      {
+        "email": "user10@company.com",
+        "model_usage": [
+          {
+            "model_name": "GLM-5",
+            "model_type": "CUE",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 397247,
+              "output_tokens": 25702
+            }
+          },
+          {
+            "model_name": "Kimi-K2.6",
+            "model_type": "CUE",
+            "model_source": "Trae",
+            "usage": {
+              "input_tokens": 81132,
+              "output_tokens": 329962
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "_meta": {
+    "generated_at": "2026-06-29T09:53:07.939416+00:00",
+    "source": "scripts/gen_mocks.py"
+  }
+}

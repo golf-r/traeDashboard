@@ -1,0 +1,2199 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Trae Token Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop offset='0%25' stop-color='%234f8cff'/%3E%3Cstop offset='100%25' stop-color='%237b5cff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Ctext x='50%25' y='55%25' dominant-baseline='middle' text-anchor='middle' font-family='system-ui, sans-serif' font-size='18' font-weight='700' fill='white'%3ET%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="style.css?v=3" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- ===================== Header ===================== -->
+    <header class="app-header" role="banner">
+      <div class="app-header__inner">
+        <div class="brand">
+          <div class="brand__mark" aria-hidden="true">T</div>
+          <div>
+            <div class="brand__title">Trae Token Dashboard</div>
+            <div class="brand__subtitle">企业版</div>
+          </div>
+        </div>
+
+        <div class="header-tools">
+          <!-- 1. LastFetchedBadge -->
+          <span
+            class="last-fetched"
+            id="last-fetched"
+            title="最后获取：—"
+          >
+            <span class="last-fetched__dot" aria-hidden="true"></span>
+            <span class="last-fetched__time mono" id="lf-time">—</span>
+            <span class="last-fetched__rel" id="lf-rel">—</span>
+            <span class="last-fetched__hint" id="lf-stale-hint" hidden></span>
+          </span>
+
+          <!-- Cycle range label (current billing cycle) -->
+          <span class="cycle-label" id="cycle-label" aria-label="当前计费周期" title="当前计费周期:每月 10 号 ~ 次月 9 号 · 跨日 0 点重置配额">
+            <span class="cycle-label__dot" aria-hidden="true"></span>
+            <span id="cycle-label-text">周期 —</span>
+          </span>
+
+          <!-- P1-8: 帮助按钮 — 首次访问引导 -->
+          <button class="theme-toggle" type="button" id="help-btn" aria-label="使用说明" title="使用说明 / FAQ">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+              <line x1="12" y1="17" x2="12.01" y2="17"/>
+            </svg>
+          </button>
+
+          <!-- 2. ThemeToggle -->
+          <button class="theme-toggle" type="button" id="theme-toggle" aria-label="切换深色 / 浅色" title="切换深色 / 浅色">
+            <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+            <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+            </svg>
+          </button>
+
+          <!-- 3. RefreshButton -->
+          <button class="btn" id="refresh-btn" type="button" aria-label="刷新数据">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>
+            </svg>
+            刷新
+          </button>
+
+          <!-- 3.5 ManageAccountsButton — 账号增删入口(PM 视角放 header 最显眼) -->
+          <button class="btn btn--ghost" id="btn-manage-accounts" type="button" aria-label="管理账号" title="新增 / 删除要监控的账号">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <line x1="19" y1="8" x2="19" y2="14"/>
+              <line x1="22" y1="11" x2="16" y2="11"/>
+            </svg>
+            管理账号
+          </button>
+
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <div class="container">
+
+        <!-- ===================== KPI (3-up) ===================== -->
+        <section class="kpi-grid" aria-label="关键指标">
+          <div class="kpi-card kpi-card--accounts">
+            <div class="kpi-card__head">
+              <div class="kpi-card__label">总账号数</div>
+              <div class="kpi-card__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+              </div>
+            </div>
+            <div class="kpi-card__value is-skeleton" data-kpi="accounts">—</div>
+            <div class="kpi-card__sub">
+              <span data-kpi-sub="accounts">—</span>
+            </div>
+          </div>
+
+          <div class="kpi-card kpi-card--consumed">
+            <div class="kpi-card__head">
+              <div class="kpi-card__label">已消耗</div>
+              <div class="kpi-card__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+            </div>
+            <div class="kpi-card__value is-skeleton" data-kpi="consumed">—</div>
+            <div class="kpi-card__sub">
+              <span data-kpi-sub="consumed">—</span>
+            </div>
+          </div>
+
+          <div class="kpi-card kpi-card--remaining">
+            <div class="kpi-card__head">
+              <div class="kpi-card__label">剩余</div>
+              <div class="kpi-card__icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+            </div>
+            <div class="kpi-card__value is-skeleton" data-kpi="remaining">—</div>
+            <div class="kpi-card__sub">
+              <span data-kpi-sub="remaining">—</span>
+            </div>
+            <div class="kpi-card__countdown" id="countdown-display" hidden></div>
+          </div>
+        </section>
+
+        <!-- ===================== Quota Bar ===================== -->
+        <section class="quota-bar" id="quota-bar" data-util="zero" aria-label="配额使用情况">
+          <div class="quota-bar__head">
+            <div class="quota-bar__title">
+              <span class="quota-bar__title-text">配额使用</span>
+              <span class="quota-bar__legend">
+                <span class="quota-bar__legend-item" data-tip="Input:模型接收的提示 token 数(写入越多消耗越快)" title="Input:模型接收的提示 token 数(写入越多消耗越快)">
+                  <span class="quota-bar__legend-swatch quota-bar__legend-swatch--in"></span>
+                  <span class="quota-bar__legend-label">Input</span>
+                  <span class="quota-bar__legend-val mono" id="quota-in-val">—</span>
+                </span>
+                <span class="quota-bar__legend-item" data-tip="Output:模型生成的回复 token 数(Input 的 3-10 倍价)" title="Output:模型生成的回复 token 数(Input 的 3-10 倍价)">
+                  <span class="quota-bar__legend-swatch quota-bar__legend-swatch--out"></span>
+                  <span class="quota-bar__legend-label">Output</span>
+                  <span class="quota-bar__legend-val mono" id="quota-out-val">—</span>
+                </span>
+              </span>
+            </div>
+
+            <div class="quota-bar__metrics">
+              <div class="quota-bar__metric quota-bar__metric--total">
+                <span class="quota-bar__metric-label">总量</span>
+                <span class="quota-bar__metric-val mono" id="quota-total">—</span>
+              </div>
+              <div class="quota-bar__metric-divider" aria-hidden="true">/</div>
+              <div class="quota-bar__metric quota-bar__metric--used">
+                <span class="quota-bar__metric-label">已用</span>
+                <span class="quota-bar__metric-val mono" id="quota-used">—</span>
+                <span class="quota-bar__metric-pct mono" id="quota-pct">—</span>
+              </div>
+              <div class="quota-bar__metric-divider" aria-hidden="true">/</div>
+              <div class="quota-bar__metric quota-bar__metric--remain">
+                <span class="quota-bar__metric-label">剩余</span>
+                <span class="quota-bar__metric-val mono" id="quota-remain">—</span>
+              </div>
+              <div class="quota-bar__threshold" id="quota-threshold" data-state="ok" data-tip="配额 ≥ 80% 触发提醒 · 90% 触发告警 · 100% 触发超额" title="配额 ≥ 80% 触发提醒 · 90% 触发告警 · 100% 触发超额">
+                <span class="quota-bar__threshold-icon" id="quota-threshold-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="16" x2="12" y2="12"/>
+                    <line x1="12" y1="8" x2="12.01" y2="8"/>
+                  </svg>
+                </span>
+                <span id="quota-threshold-text">阈值正常 · 80% 起提醒</span>
+              </div>
+            </div>
+          </div>
+          <div class="quota-bar__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="quota-track">
+            <div class="quota-bar__fill" id="quota-fill" style="width: 0%;">
+              <div class="quota-bar__fill-input" id="quota-fill-input" style="width: 0%;"></div>
+              <div class="quota-bar__fill-output" id="quota-fill-output" style="width: 0%;"></div>
+            </div>
+            <div class="quota-bar__threshold-marker" aria-hidden="true">
+              <span class="quota-bar__threshold-tick" style="left: 80%;"></span>
+              <span class="quota-bar__threshold-tick-label">80%</span>
+            </div>
+          </div>
+        </section>
+        <!-- ===================== Account Table ===================== -->
+        <section class="section" aria-label="账号用量列表">
+          <div class="section__head">
+            <div class="section__head-left">
+              <h2 class="section__title">账号用量</h2>
+              <span class="section__hint">点击列头排序 · 排序方向显示在 ⇅ 处 · 点击邮箱可复制</span>
+            </div>
+            <div class="section__head-right">
+              <span class="section__count" id="result-count" aria-live="polite">— 个账号</span>
+              <select class="filter-select" id="filter-usage" aria-label="用量区间">
+                <option value="all">全部用量</option>
+                <option value="low">&lt; 70%</option>
+                <option value="mid">70-90%</option>
+                <option value="high">&gt; 90%</option>
+              </select>
+              <div class="search-wrap">
+                <svg class="search-wrap__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="11" cy="11" r="8"/>
+                  <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                </svg>
+                <input type="search" class="search-input" id="account-search" placeholder="搜索账号 / 邮箱" aria-label="搜索账号或邮箱" autocomplete="off" />
+                <button class="search-clear" id="search-clear" type="button" aria-label="清空搜索" hidden>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </div>
+              <button class="btn btn--ghost" id="btn-quick-export" type="button" aria-label="导出当前页 CSV" title="导出当前页为 CSV（带筛选与排序）">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                  <polyline points="7 10 12 15 17 10"/>
+                  <line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span class="btn__label">导出</span>
+              </button>
+              <!-- SendReportButton — 低频操作,放导出旁边而非 header -->
+              <button class="btn btn--ghost" id="report-btn" type="button" aria-label="发送邮件报告" title="立即发送一封周期消耗日报邮件">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                  <polyline points="22,6 12,13 2,6"/>
+                </svg>
+                <span class="btn__label">发送报告</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="filter-summary" id="filter-summary" hidden>
+            <span class="filter-summary__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+            </span>
+            <span class="filter-summary__text" id="filter-summary-text">当前筛选</span>
+            <button class="filter-summary__clear" id="filter-summary-clear" type="button">清除筛选</button>
+          </div>
+
+          <div class="table-wrap table-wrap--flush">
+            <div class="batch-bar" id="batch-bar" hidden>
+              <label class="batch-bar__sel">
+                <input type="checkbox" id="select-all" aria-label="全选" />
+                <span>全选</span>
+              </label>
+              <span class="batch-bar__count" id="batch-count">已选 0 个</span>
+              <button class="batch-bar__btn" id="batch-export" type="button" aria-label="导出选中行 CSV">导出选中</button>
+              <button class="batch-bar__btn batch-bar__btn--ghost" id="batch-copy" type="button">复制邮箱</button>
+            </div>
+            <table id="account-table">
+              <colgroup>
+                <col class="chk-col" />
+                <col class="num idx-col" style="width:36px" />
+                <col style="width:200px" />
+                <col style="width:240px" />
+                <col class="num" style="width:88px" />
+                <col class="num" style="width:88px" />
+                <col class="num" style="width:96px" />
+                <col class="num quota-col" style="width:150px" />
+                <col class="status-col" style="width:80px" />
+              </colgroup>
+              <thead>
+                <tr>
+                  <th class="chk-col"><input type="checkbox" id="select-all-head" aria-label="全选当前页" /></th>
+                  <th class="sortable num idx-col" data-key="idx"     data-type="num">#<span class="sort-arrow"></span></th>
+                  <th class="sortable"     data-key="name"    data-type="str">账号<span class="sort-arrow"></span></th>
+                  <th class="sortable"     data-key="email"   data-type="str">邮箱<span class="sort-arrow"></span></th>
+                  <th class="sortable num" data-key="input"   data-type="num">Input<span class="sort-arrow"></span></th>
+                  <th class="sortable num" data-key="output"  data-type="num">Output<span class="sort-arrow"></span></th>
+                  <th class="sortable num" data-key="total"   data-type="num">消耗<span class="sort-arrow"></span></th>
+                  <th class="sortable num" data-key="quota"   data-type="num">配额使用率<span class="sort-arrow"></span></th>
+                  <th class="status-col">状态</th>
+                </tr>
+              </thead>
+              <tbody id="tbody">
+                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="pagination" id="pagination">
+            <div class="pagination__info" id="page-info">共 0 个账号</div>
+            <div class="pagination__nav" id="pagination-nav">
+              <select class="pagination__select" id="page-size-select" aria-label="每页条数">
+                <option value="20">20 条/页</option>
+                <option value="50">50 条/页</option>
+                <option value="100">100 条/页</option>
+              </select>
+              <button class="pagination__btn" id="page-prev" type="button" disabled>‹</button>
+              <span class="pagination__btn is-active" id="page-current">1</span>
+              <button class="pagination__btn" id="page-next" type="button">›</button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+
+    <footer class="foot">
+      Trae Token Dashboard · 本地构建 · 数据来源 <code class="mono">/api/accounts</code>
+    </footer>
+  </div>
+
+  <!-- ===================== Custom Tooltip (consumed cell) ===================== -->
+  <div class="tooltip" id="consumed-tooltip" role="tooltip" hidden></div>
+
+  <!-- ===================== Status live region (sr-only) =====================
+       last-fetched chip 不再带 aria-live(避免 30s 轮询反复播报)。
+       状态发生质变(ok↔stale↔error)时,这里写入一次,屏幕阅读器才播报。 -->
+  <div class="sr-only" id="status-live" role="status" aria-live="polite"></div>
+
+  <!-- ===================== Account Management Modal ===================== -->
+  <div class="modal-overlay" id="manage-accounts-modal" hidden role="dialog" aria-modal="true" aria-labelledby="manage-modal-title">
+    <div class="modal">
+      <div class="modal__head">
+        <h3 class="modal__title" id="manage-modal-title">
+          账号管理
+          <small>新增 / 删除要监控的账号 · 下次刷新数据生效</small>
+        </h3>
+        <button class="modal__close" type="button" id="manage-modal-close" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <form class="modal__form" id="manage-add-form" novalidate>
+          <div class="modal__field">
+            <label for="manage-add-email">邮箱</label>
+            <input type="email" id="manage-add-email" name="email" placeholder="user@company.com" autocomplete="off" required />
+          </div>
+          <div class="modal__field">
+            <label for="manage-add-name">显示名 (可选)</label>
+            <input type="text" id="manage-add-name" name="display_name" placeholder="默认取邮箱 @ 前" maxlength="64" autocomplete="off" />
+          </div>
+          <button type="submit" class="btn" id="manage-add-submit">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            添加
+          </button>
+          <div class="modal__form-error" id="manage-add-error" hidden></div>
+        </form>
+
+        <div class="modal__list-wrap">
+          <div class="modal__list-head">
+            <span id="manage-list-count">— 个账号</span>
+            <span class="section__hint">删除后下次刷新数据即从监控列表移除</span>
+          </div>
+          <div class="modal__list" id="manage-list"></div>
+        </div>
+
+        <p class="modal__hint">
+          改动会立即写入 SQLite。下次点击"刷新"按钮时,Collector 会按新列表拉取数据。
+          要永久保留(跨重启),请同步编辑 <code>config.yaml</code> 的 <code>accounts</code> 段。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== Help Modal ===================== -->
+  <div class="modal-overlay" id="help-modal" hidden role="dialog" aria-modal="true" aria-labelledby="help-modal-title">
+    <div class="modal">
+      <div class="modal__head">
+        <h3 class="modal__title" id="help-modal-title">
+          使用说明
+          <small>本 dashboard 的核心概念与操作</small>
+        </h3>
+        <button class="modal__close" type="button" id="help-modal-close" aria-label="关闭">×</button>
+      </div>
+      <div class="modal__body">
+        <dl class="account-detail__grid">
+          <dt>周期</dt>
+          <dd>每月 10 号 ~ 次月 9 号。跨日 0 点重置配额(从"已用"清零,"剩余"恢复 50M × 账号数)。</dd>
+          <dt>总账号数</dt>
+          <dd>本周期有上报数据(in / out tokens)的账号。"在用 / 静默"区分本周期内是否有消耗。</dd>
+          <dt>已消耗</dt>
+          <dd>本周期所有账号的 input + output token 之和。颜色按用量档位:&lt;70% 绿,70-90% 橙,≥90% 红,&gt;100% 红色闪烁。</dd>
+          <dt>剩余</dt>
+          <dd>"总量 - 已消耗"。chip 显示"重置于 X 天 Y 时 Z 分 后"——距下次配额刷新。</dd>
+          <dt>配额使用率</dt>
+          <dd>每账号的 consumed / 50M × 100%。&lt;70% 正常,70-90% 注意,90-100% 接近上限,&gt;100% 已超额。</dd>
+          <dt>刷新按钮</dt>
+          <dd>触发服务端同步拉取一次(POST /api/refresh),把所有账号的最新用量写到 SQLite。20 个账号串行,通常 5-15 秒。</dd>
+          <dt>管理账号</dt>
+          <dd>新增/删除要监控的账号。改动立刻生效(下次刷新即按新列表拉数据)。<b>删除前会要求输入显示名确认</b>,防误删。</dd>
+          <dt>发送报告</dt>
+          <dd>立即触发一封周期消耗日报邮件(收件人在 <code>config.yaml</code> 的 <code>email.recipients</code>)。</dd>
+          <dt>主题</dt>
+          <dd>右上角月/日图标切换深色/浅色主题。偏好存到 localStorage。</dd>
+          <dt>列操作</dt>
+          <dd>点击表头排序(⇅ 指示方向)。点击邮箱单元格复制到剪贴板。表头右侧"导出"导出当前页为 CSV。</dd>
+        </dl>
+        <p class="modal__hint">
+          数据来源 <code>/api/accounts</code> · 当前监控 <span id="help-modal-account-count">—</span> 个账号 · 数据库 SQLite,本地文件 <code>data/dashboard.db</code>。
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== Send Report Modal ===================== -->
+  <div class="modal-overlay" id="report-modal" hidden role="dialog" aria-modal="true" aria-labelledby="report-modal-title">
+    <div class="modal modal--report">
+      <div class="modal__head">
+        <h3 class="modal__title" id="report-modal-title">
+          发送邮件报告
+          <small>预览报告内容 · 确认收件人后发送</small>
+        </h3>
+        <button class="modal__close" type="button" id="report-modal-close" aria-label="关闭">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal__body">
+        <div class="report-modal__status-banner" id="report-modal-status" hidden></div>
+
+        <div class="report-modal__recipients">
+          <div class="report-modal__recipients-head">
+            <h4>收件人</h4>
+            <span class="report-modal__recipients-meta" id="report-recipients-meta">— 位收件人 · 已选 — 位</span>
+          </div>
+          <div class="report-modal__recipients-list" id="report-recipients-list">
+            <span class="report-modal__preview-loading">加载中…</span>
+          </div>
+        </div>
+
+        <div class="report-modal__preview-wrap">
+          <div class="report-modal__preview-head">
+            <span>报告预览（与实际邮件内容一致）</span>
+            <span>主题: <code id="report-preview-subject">—</code></span>
+          </div>
+          <div class="report-modal__preview-loading" id="report-preview-loading">正在生成预览…</div>
+          <div class="report-modal__preview-error" id="report-preview-error" hidden></div>
+          <iframe class="report-modal__preview-iframe" id="report-preview-iframe" hidden title="报告预览"></iframe>
+        </div>
+
+        <div class="report-modal__footer">
+          <span class="report-modal__footer-hint" id="report-footer-hint">改动仅对本次发送生效，不会写回 config.yaml</span>
+          <div class="report-modal__footer-actions">
+            <button class="btn btn--ghost" type="button" id="report-modal-cancel">取消</button>
+            <button class="btn btn--primary" type="button" id="report-modal-send" disabled>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22,2 15,22 11,13 2,9"/>
+              </svg>
+              <span class="btn__label">确认发送</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js?v=3"></script>
+  <script>
+  /* ============================================================
+     Dashboard page — index.html
+     ============================================================ */
+  (function () {
+    "use strict";
+
+    const App = window.App;
+    const tbody = document.getElementById("tbody");
+    const refreshBtn = document.getElementById("refresh-btn");
+    const searchInput = document.getElementById("account-search");
+
+    // ----- Custom tooltip for the consumed cell (per-model breakdown) -----
+    // Replaces the native `title` attr for a richer, faster, theme-aware UI.
+    const tooltipEl = document.getElementById("consumed-tooltip");
+    let tooltipTimer = null;
+    let tooltipCurrentTarget = null;
+
+    function showTooltip(target, modelsJson) {
+      let models = [];
+      try { models = JSON.parse(modelsJson || "[]"); } catch (_) { models = []; }
+      let html;
+      if (!models.length) {
+        html = '<div class="tooltip__empty">该账号本周期无模型用量</div>';
+      } else {
+        html = '<div class="tooltip__title">模型消耗明细</div>' +
+          '<div class="tooltip__table">' +
+            // 列头:让屏幕阅读器和视力用户都能分清三列含义
+            '<div class="tooltip__table-head">' +
+              '<span>模型</span>' +
+              '<span>Input</span>' +
+              '<span>消耗</span>' +
+            '</div>';
+        models.forEach(function (m) {
+          html +=
+            '<span class="tooltip__model">' + escapeHtml(m.name || "?") + '</span>' +
+            '<span class="tooltip__num">in ' + App.formatTokens(m.input_tokens) + '</span>' +
+            '<span class="tooltip__num tooltip__num--total">' + App.formatTokens(m.consumed) + '</span>';
+        });
+        html += "</div>";
+      }
+      tooltipEl.innerHTML = html;
+      tooltipEl.hidden = false;
+      // Position after paint so we know the tooltip's own size.
+      requestAnimationFrame(function () {
+        const r = target.getBoundingClientRect();
+        const tw = tooltipEl.offsetWidth;
+        const th = tooltipEl.offsetHeight;
+        let x = r.left + (r.width / 2) - (tw / 2);
+        let y = r.bottom + 8;
+        // Clamp into viewport
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        if (x < 8) x = 8;
+        if (x + tw > vw - 8) x = vw - tw - 8;
+        if (y + th > vh - 8) y = r.top - th - 8;
+        tooltipEl.style.left = x + "px";
+        tooltipEl.style.top = y + "px";
+        tooltipEl.classList.add("is-visible");
+      });
+    }
+
+    function hideTooltip() {
+      tooltipEl.classList.remove("is-visible");
+      tooltipEl.hidden = true;
+      tooltipEl.innerHTML = "";
+      tooltipCurrentTarget = null;
+    }
+
+    // Event delegation: any .cell-total with data-models triggers the tooltip.
+    tbody.addEventListener("mouseover", function (e) {
+      const cell = e.target.closest && e.target.closest("td.cell-total[data-models]");
+      if (!cell) return;
+      if (tooltipCurrentTarget === cell) return; // already showing
+      if (tooltipTimer) clearTimeout(tooltipTimer);
+      tooltipTimer = setTimeout(function () {
+        showTooltip(cell, cell.getAttribute("data-models"));
+        tooltipCurrentTarget = cell;
+      }, 200);
+    });
+    tbody.addEventListener("mouseout", function (e) {
+      const cell = e.target.closest && e.target.closest("td.cell-total[data-models]");
+      if (!cell) return;
+      const related = e.relatedTarget;
+      if (related && cell.contains(related)) return; // moving inside the cell
+      if (tooltipTimer) clearTimeout(tooltipTimer);
+      hideTooltip();
+    });
+    // 键盘可达:focus 时显示 tooltip(focusin/focusout 冒泡,可事件委托)
+    tbody.addEventListener("focusin", function (e) {
+      const cell = e.target.closest && e.target.closest("td.cell-total[data-models]");
+      if (!cell) return;
+      if (tooltipCurrentTarget === cell) return;
+      if (tooltipTimer) clearTimeout(tooltipTimer);
+      showTooltip(cell, cell.getAttribute("data-models"));
+      tooltipCurrentTarget = cell;
+    });
+    tbody.addEventListener("focusout", function (e) {
+      const cell = e.target.closest && e.target.closest("td.cell-total[data-models]");
+      if (!cell) return;
+      const related = e.relatedTarget;
+      if (related && cell.contains(related)) return;
+      if (tooltipTimer) clearTimeout(tooltipTimer);
+      hideTooltip();
+    });
+    // 触屏支持:tap 切换 tooltip(第一次显示,再次或点别处关闭)
+    tbody.addEventListener("click", function (e) {
+      const cell = e.target.closest && e.target.closest("td.cell-total[data-models]");
+      if (!cell) return;
+      if (tooltipCurrentTarget === cell) {
+        hideTooltip();
+      } else {
+        if (tooltipTimer) clearTimeout(tooltipTimer);
+        showTooltip(cell, cell.getAttribute("data-models"));
+        tooltipCurrentTarget = cell;
+      }
+    });
+    // 点别处关闭 tooltip
+    document.addEventListener("click", function (e) {
+      if (!tooltipCurrentTarget) return;
+      if (e.target.closest && e.target.closest("td.cell-total[data-models]")) return;
+      if (e.target.closest && e.target.closest("#consumed-tooltip")) return;
+      hideTooltip();
+    });
+    // Hide on scroll / Esc so the tooltip doesn't lag behind.
+    document.addEventListener("scroll", hideTooltip, true);
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") hideTooltip();
+    });
+
+    // Cycle label
+    const cycleLabelText = document.getElementById("cycle-label-text");
+
+    // Quota bar
+    const quotaBar = document.getElementById("quota-bar");
+    const quotaTrack = document.getElementById("quota-track");
+    const quotaFill = document.getElementById("quota-fill");
+    const quotaFillInput = document.getElementById("quota-fill-input");
+    const quotaFillOutput = document.getElementById("quota-fill-output");
+    const quotaPct = document.getElementById("quota-pct");
+    const quotaUsedEl = document.getElementById("quota-used");
+    const quotaTotalEl = document.getElementById("quota-total");
+    const quotaRemainEl = document.getElementById("quota-remain");
+    const quotaInVal = document.getElementById("quota-in-val");
+    const quotaOutVal = document.getElementById("quota-out-val");
+    const quotaThreshold = document.getElementById("quota-threshold");
+    const quotaThresholdText = document.getElementById("quota-threshold-text");
+    const resultCount = document.getElementById("result-count");
+
+    let sortKey = "total";
+    let sortDir = "desc";
+    let searchQuery = "";
+    let lastAccounts = [];
+    let lastStatus = null;        // raw /api/status payload (or {})
+    let lastEnriched = null;      // App.enrichStatus(lastStatus, lastAccounts)
+    let lastBadgeState = null;    // 追踪上次质变状态(idle/ok/stale/error),用于决定是否播报
+
+    // ----- Theme (apply early to avoid flash) ----------------------
+
+    App.initTheme();
+
+    // ----- LastFetchedBadge updaters -------------------------------
+
+    // 把状态质变写入 sr-only live region,屏幕阅读器才会播报。
+    // 每次轮询只更新可见文案,不写 live region —— 避免每 30s 啰叨一遍。
+    function announceStatusChange(state, status) {
+      if (state === lastBadgeState) return; // 质变才播报
+      lastBadgeState = state;
+      var live = document.getElementById("status-live");
+      if (!live) return;
+      if (state === "error") {
+        live.textContent = "数据获取失败: " + (status && status.error ? status.error : "未知错误");
+      } else if (state === "stale") {
+        live.textContent = "数据已过期,超过 1 小时未刷新";
+      } else if (state === "ok") {
+        live.textContent = "数据已更新";
+      } else {
+        live.textContent = ""; // idle:不播报
+      }
+    }
+
+    function applyStatusToBadge(status) {
+      const badge = document.getElementById("last-fetched");
+      const timeEl = document.getElementById("lf-time");
+      const relEl = document.getElementById("lf-rel");
+      const dot = badge.querySelector(".last-fetched__dot");
+      const hintEl = document.getElementById("lf-stale-hint");
+      if (!status || !status.last_fetched_at) {
+        timeEl.textContent = "—";
+        relEl.textContent = "等待数据";
+        dot.className = "last-fetched__dot";
+        badge.title = "尚未获取数据";
+        if (hintEl) hintEl.hidden = true;
+        announceStatusChange("idle", status);
+        return;
+      }
+      var absTime = App.formatTime(status.last_fetched_at);
+      timeEl.textContent = "最近更新:" + App.formatRelativeTime(status.last_fetched_at);
+      relEl.textContent = "";
+      // 之前 title 里有"距今 N 秒",反人类(谁会去数秒数判断数据新旧?)——
+      // 直接用人类可读的相对时间 + 绝对时间就够,sticky 头部 chip 上的红色 dot
+      // 本身已经在数据 > 1h 时变橙色提示
+      badge.title =
+        "最后获取：" + status.last_fetched_at +
+        " (" + absTime + " · " + App.formatRelativeTime(status.last_fetched_at) + ")";
+      dot.classList.remove("last-fetched__dot--stale", "last-fetched__dot--error");
+      // P0 UX fix: stale/error 状态给**文字**提示(P0-1)。
+      // 光看 dot 颜色用户容易错过——基于 14 小时前的快照做配额决策
+      // 是高风险动作,必须有显式文字"较旧,请刷新"
+      var isStale = false, isError = false;
+      if (status.error) {
+        dot.classList.add("last-fetched__dot--error");
+        isError = true;
+        announceStatusChange("error", status);
+      } else if (status.seconds_since_fetch != null && status.seconds_since_fetch >= 3600) {
+        dot.classList.add("last-fetched__dot--stale");
+        isStale = true;
+        announceStatusChange("stale", status);
+      } else {
+        announceStatusChange("ok", status);
+      }
+      if (hintEl) {
+        if (isError) {
+          hintEl.textContent = "· 拉取失败,请刷新";
+          hintEl.className = "last-fetched__hint last-fetched__hint--error";
+          hintEl.hidden = false;
+        } else if (isStale) {
+          hintEl.textContent = "· 较旧,请刷新";
+          hintEl.className = "last-fetched__hint last-fetched__hint--stale";
+          hintEl.hidden = false;
+        } else {
+          hintEl.hidden = true;
+        }
+      }
+    }
+
+    async function refreshStatus() {
+      try {
+        const s = await App.fetchStatus();
+        lastStatus = s;
+        applyStatusToBadge(s);
+        // Cycle label can be painted from status alone (even before accounts).
+        paintCycleLabel(lastEnriched || App.enrichStatus(s, lastAccounts));
+      } catch (_) {
+        // keep previous badge state, don't toast for polling failures
+      }
+    }
+
+    // ----- Cycle label --------------------------------------------
+
+    function paintCycleLabel(enriched) {
+      const start = enriched && enriched.cycle_start;
+      const end = enriched && enriched.cycle_end;
+      if (start || end) {
+        cycleLabelText.textContent = App.formatCycleRange(start, end);
+      } else {
+        cycleLabelText.textContent = "周期 —";
+      }
+    }
+
+    // ----- KPI rendering -------------------------------------------
+
+    function setKpi(key, value) {
+      const el = document.querySelector('[data-kpi="' + key + '"]');
+      if (!el) return;
+      el.classList.remove("is-skeleton");
+      el.textContent = value;
+    }
+    function setSub(key, sub, cls) {
+      const sEl = document.querySelector('[data-kpi-sub="' + key + '"]');
+      if (!sEl) return;
+      if (sub != null) sEl.textContent = sub;
+      if (cls) sEl.className = cls;
+    }
+
+    /**
+     * Paint the 3 KPIs + the quota bar from the enriched status payload
+     * and the account list.
+     */
+    function renderKpis(accounts, status) {
+      const accs = accounts || [];
+      const enriched = App.enrichStatus(status, accs);
+      lastEnriched = enriched;
+
+      // Account count KPI
+      const totalAccounts = (status && status.total_accounts != null)
+        ? status.total_accounts
+        : accs.length;
+      const accountsWithData = (status && status.accounts_with_data != null)
+        ? status.accounts_with_data
+        : accs.filter((a) => (a.consumed || 0) > 0).length;
+      setKpi("accounts", String(totalAccounts));
+      setSub("accounts", accountsWithData + " / " + totalAccounts + " 在用");
+
+      // Consumed KPI
+      const consumed = enriched.total_consumed || 0;
+      setKpi("consumed", App.formatTokens(consumed));
+      const totalQuota = enriched.total_quota || 0;
+      // 周期使用率 — 用于 KPI 副标题判断是否超额
+      const cyclePct = totalQuota > 0 ? (consumed / totalQuota) * 100 : 0;
+      const consumedCard = document.querySelector(".kpi-card--consumed");
+      if (consumedCard) consumedCard.classList.toggle("kpi-card--over", cyclePct > 100);
+      // P1-7: 配额=0 时,不要触发"已超额"判定(cyclePct=0,大于100不可能)
+      // 同时把 consumed KPI 副标题改成"未配置月配额"以保持上下文一致
+      if (cyclePct > 100) {
+        var overPct = (cyclePct - 100).toFixed(1);
+        setSub("consumed", "· 已超额 " + overPct + "% · 立即暂停或扩容", "kpi-sub--alert");
+      } else if (totalQuota === 0) {
+        setSub("consumed", "· 未配置月配额 · 仅展示消耗");
+      } else {
+        setSub("consumed", "· 周期累计 · Input + Output");
+      }
+
+      // Remaining KPI:三档状态 — 正常 / warning(<20% 橙) / critical(<5% 红)
+      const remaining = enriched.total_remaining || 0;
+      var remainingCard = document.querySelector(".kpi-card--remaining");
+      if (remainingCard && totalQuota > 0) {
+        const remainingRatio = remaining / totalQuota;
+        remainingCard.classList.toggle("kpi-card--warning", remainingRatio < 0.2);
+        remainingCard.classList.toggle("kpi-card--critical", remainingRatio < 0.05);
+      } else if (remainingCard) {
+        remainingCard.classList.remove("kpi-card--warning", "kpi-card--critical");
+      }
+      setKpi("remaining", App.formatTokens(remaining));
+      var nextResetStr = enriched.nextResetAt;
+      const daysLeft = nextResetStr ? App.daysUntil(nextResetStr) : null;
+      // 倒计时 chip 是唯一保留的重置信息源(sub line 里之前还有
+      // "X 天后重置(日期)" 那种冗余表达,合并到下面这个 chip 里)
+      setSub("remaining", "· 周期累计 · 配额刷新前剩余");
+      if (totalQuota > 0 && daysLeft != null) {
+        // Countdown — 唯一保留的"几天几小时"重置表达
+        var countdownEl = document.getElementById("countdown-display");
+        if (countdownEl) {
+          var cdText = App.formatCountdown(nextResetStr);
+          if (cdText) {
+            countdownEl.textContent = "重置于 " + cdText + " 后";
+            countdownEl.hidden = false;
+            countdownEl.className = "kpi-card__countdown";
+            if (daysLeft <= 1) {
+              countdownEl.classList.add("kpi-card__countdown--critical");
+            } else if (daysLeft <= 3) {
+              countdownEl.classList.add("kpi-card__countdown--warn");
+            }
+          } else {
+            countdownEl.hidden = true;
+          }
+        }
+      } else if (totalQuota > 0) {
+        setSub("remaining", "· 周期累计");
+      } else {
+        setSub("remaining", "· 配置月配额后将显示");
+      }
+
+      paintCycleLabel(enriched);
+      paintQuotaBar(enriched);
+    }
+
+    // ----- Quota bar ----------------------------------------------
+
+    function paintQuotaBar(enriched) {
+      const quota = enriched.total_quota || 0;
+      const consumed = enriched.total_consumed || 0;
+      const inN = lastAccounts.reduce((s, a) => s + (a.input_tokens || 0), 0);
+      const outN = lastAccounts.reduce((s, a) => s + (a.output_tokens || 0), 0);
+
+      // P1-7: 配额为 0 时,不应显示"已用 100%"——这会让人误以为已超额。
+      // 强制把 bar 显示为 0%,并标"无配额"状态。
+      let pct = 0;
+      if (quota > 0) {
+        pct = (consumed / quota) * 100;
+      }
+      // quota === 0 时 pct = 0,bar 空,显示"未配置"提示
+      const barPct = Math.min(100, Math.max(0, pct));
+
+      // input vs output share WITHIN the consumed portion
+      let inPct = 0, outPct = 0;
+      if (consumed > 0) {
+        inPct = (inN / consumed) * 100;
+        outPct = 100 - inPct;
+      }
+
+      // Apply widths (双段颜色:Input 蓝 / Output 紫)
+      quotaFill.style.width = barPct.toFixed(2) + "%";
+      quotaFillInput.style.width = (consumed > 0 ? inPct : 0).toFixed(2) + "%";
+      quotaFillOutput.style.width = (consumed > 0 ? outPct : 0).toFixed(2) + "%";
+
+      // Accessibility
+      quotaTrack.setAttribute("aria-valuenow", String(Math.round(barPct)));
+      quotaTrack.setAttribute("aria-valuemin", "0");
+      quotaTrack.setAttribute("aria-valuemax", "100");
+      // aria-valuetext:让屏幕阅读器读出"已用 X / 共 Y"而非只读百分比
+      if (quota > 0) {
+        quotaTrack.setAttribute(
+          "aria-valuetext",
+          "已用 " + App.formatTokens(consumed) + " / 共 " + App.formatTokens(quota)
+        );
+      } else {
+        quotaTrack.removeAttribute("aria-valuetext");
+      }
+
+      // Color ramp — uses RAW pct (not clamped) so > 100% shows red
+      let bucket = "zero";
+      if (consumed === 0 || quota === 0) bucket = "zero";
+      else if (pct >= 90) bucket = "high";
+      else if (pct > 70) bucket = "mid";
+      else bucket = "low";
+      quotaBar.setAttribute("data-util", bucket);
+      quotaBar.setAttribute("data-over", pct > 100 ? "true" : "false");
+      quotaPct.className = "quota-bar__metric-pct mono quota-bar__pct--" + bucket;
+
+      // 三段式文案:已用 / 总量 / 剩余
+      // P1-7: quota=0 时显示"无配额"而不是"100%"——避免用户误以为已超额
+      const remain = Math.max(0, quota - consumed);
+      quotaUsedEl.textContent = App.formatTokens(consumed);
+      quotaTotalEl.textContent = quota > 0 ? App.formatTokens(quota) : "未配置";
+      quotaRemainEl.textContent = quota > 0 ? App.formatTokens(remain) : "—";
+      quotaPct.textContent = quota > 0 ? App.formatPercent(pct, 1) : "—";
+
+      // 剩余指标颜色: 充足 / 偏紧 / 危急
+      var remainMetric = quotaRemainEl.parentElement;
+      remainMetric.classList.remove("quota-bar__metric--warn", "quota-bar__metric--critical");
+      if (quota > 0) {
+        const ratio = remain / quota;
+        if (ratio < 0.1) remainMetric.classList.add("quota-bar__metric--critical");
+        else if (ratio < 0.3) remainMetric.classList.add("quota-bar__metric--warn");
+      }
+
+      // Input / Output 图例数值
+      quotaInVal.textContent = App.formatTokens(inN);
+      quotaOutVal.textContent = App.formatTokens(outN);
+
+      // 阈值状态机:ok(0-80%) / warn(80-90%) / alert(90-100%+) / over(>100%)
+      let thresholdState = "ok";
+      let thresholdText = "阈值正常 · 80% 起提醒";
+      if (quota > 0 && pct >= 100) {
+        thresholdState = "alert";
+        thresholdText = "已超额 · 立即暂停或扩容";
+      } else if (quota > 0 && pct >= 90) {
+        thresholdState = "alert";
+        thresholdText = "已触达 90% · 立即告警";
+      } else if (quota > 0 && pct >= 80) {
+        thresholdState = "warn";
+        thresholdText = "已达 80% · 通知到负责人";
+      } else if (quota === 0 && consumed > 0) {
+        thresholdState = "warn";
+        thresholdText = "未配置月配额 · 仅展示消耗";
+      }
+      quotaThreshold.setAttribute("data-state", thresholdState);
+      quotaThresholdText.textContent = thresholdText;
+      // 阈值图标:ok 用 info (i),warn/alert 用警告三角 — PM 视角下,
+      // 阈值正常时不该显示警告形 icon,以免造成"误报"印象
+      var iconEl = document.getElementById("quota-threshold-icon");
+      if (iconEl) {
+        iconEl.innerHTML = thresholdState === "ok"
+          ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+          : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>';
+      }
+    }
+
+    // ----- Helpers --------------------------------------------------
+
+    function escapeHtml(s) {
+      return String(s == null ? "" : s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // ----- Account table -------------------------------------------
+
+    function decorateRows(accounts) {
+      return accounts.map((a, i) => {
+        const inN = Number(a.input_tokens) || 0;
+        const outN = Number(a.output_tokens) || 0;
+        const consumed = Number(a.consumed) || (inN + outN);
+        const name = a.display_name || (a.email || "").split("@")[0] || "(未命名)";
+        const perQ = Number(a.per_account_quota) || 50_000_000;
+        const quotaPct = Number(a.quota_used_pct) ||
+          (perQ > 0 ? (consumed / perQ) * 100 : 0);
+        // Per-model breakdown for the hover tooltip on the consumed cell.
+        // Backend returns the rows sorted by (input+output) desc, which is
+        // exactly the order we want to display them.
+        const models = Array.isArray(a.models) ? a.models : [];
+        const tooltipLines = models.length
+          ? models.map(function (m) {
+              return m.name + ": " +
+                App.formatTokens(m.input_tokens) + " in / " +
+                App.formatTokens(m.output_tokens) + " out (" +
+                App.formatTokens(m.consumed) + ")";
+            })
+          : ["该账号本周期无模型用量"];
+        return {
+          ...a,
+          _idx: i,
+          _name: name,
+          _input: inN,
+          _output: outN,
+          _total: consumed,
+          _quotaPct: quotaPct,
+          _quotaOver: quotaPct > 100,
+          _quotaBucket: quotaPct >= 90 ? "high" : quotaPct > 70 ? "mid" : "low",
+          _tooltip: tooltipLines.join("\n"),
+          _models: models, // structured data for the custom tooltip
+        };
+      });
+    }
+
+    function getSortValue(row) {
+      switch (sortKey) {
+        case "idx":    return row._idx;
+        case "name":   return row._name;
+        case "email":  return row.email;
+        case "input":  return row._input;
+        case "output": return row._output;
+        case "total":  return row._total;
+        case "quota":  return row._quotaPct;
+        default:       return 0;
+      }
+    }
+
+    function applyFilterAndSort(rows, countOnly) {
+      let filtered = rows;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        filtered = rows.filter(
+          (r) =>
+            (r._name || "").toLowerCase().includes(q) ||
+            (r.email || "").toLowerCase().includes(q)
+        );
+      }
+      if (usageFilterValue !== "all") {
+        filtered = filtered.filter(function (r) {
+          if (usageFilterValue === "low") return r._quotaPct < 70;
+          if (usageFilterValue === "mid") return r._quotaPct >= 70 && r._quotaPct < 90;
+          if (usageFilterValue === "high") return r._quotaPct >= 90;
+          return true;
+        });
+      }
+      if (countOnly) return filtered;
+      const dirMul = sortDir === "asc" ? 1 : -1;
+      filtered = filtered.slice().sort((a, b) => {
+        const va = getSortValue(a);
+        const vb = getSortValue(b);
+        if (typeof va === "string" || typeof vb === "string") {
+          return String(va || "").localeCompare(String(vb || ""), "zh-Hans-CN") * dirMul;
+        }
+        return ((Number(va) || 0) - (Number(vb) || 0)) * dirMul;
+      });
+      return filtered;
+    }
+
+    function renderTable(accounts) {
+      const totalCount = (accounts || []).length;
+      if (!accounts.length) {
+        if (resultCount) resultCount.textContent = "0 个账号";
+        tbody.innerHTML =
+          '<tr><td colspan="9" class="empty-cell">' +
+            '<div class="empty-state">' +
+              '<div class="empty-state__title">暂无数据</div>' +
+              '<div class="empty-state__hint">点击下方按钮立即从 Trae OpenAPI 拉取一次数据，或运行 <code>python -m trae_dashboard fetch</code>。</div>' +
+              '<button class="btn btn--primary empty-state__cta" type="button" id="empty-fetch-btn">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+                  '<path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/>' +
+                '</svg>' +
+                '立即拉取数据' +
+              '</button>' +
+            '</div>' +
+          '</td></tr>';
+        updatePagination(0, 1);
+        updateFilterSummary(0, totalCount);
+        var emptyFetchBtn = document.getElementById("empty-fetch-btn");
+        if (emptyFetchBtn) {
+          emptyFetchBtn.addEventListener("click", function () { refreshBtn.click(); });
+        }
+        return;
+      }
+      const decorated = decorateRows(accounts);
+      const allFiltered = applyFilterAndSort(decorated, true);
+      const totalFiltered = allFiltered.length;
+      const sorted = applyFilterAndSort(decorated, false);
+      const totalPages = Math.ceil(totalFiltered / pageSize) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+      const startIdx = (currentPage - 1) * pageSize;
+      const pageRows = sorted.slice(startIdx, startIdx + pageSize);
+
+      // 顶部统计:简洁文案
+      if (resultCount) {
+        resultCount.textContent = totalCount + " 个账号";
+      }
+      updateFilterSummary(totalFiltered, totalCount);
+
+      // 分页器:总数少时弱化
+      updatePagination(totalFiltered, totalPages);
+
+      if (!pageRows.length) {
+        tbody.innerHTML =
+          '<tr><td colspan="9" class="empty-cell">' +
+            '<div class="empty-state empty-state--nomatch">' +
+              '<div class="empty-state__icon" aria-hidden="true">' +
+                '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>' +
+              '</div>' +
+              '<div class="empty-state__title">无匹配账号</div>' +
+              '<div class="empty-state__hint">没有匹配 “' + escapeHtml(searchQuery) + '” 的账号 · 试试调整筛选或搜索条件</div>' +
+            '</div>' +
+          '</td></tr>';
+        updateBatchBar();
+        return;
+      }
+
+      tbody.innerHTML = pageRows.map(function (r) {
+        const hue = App.hueFor(r.email);
+        const color = "hsl(" + hue + " 60% 55%)";
+        const initial = App.initial(r._name);
+        const qPct = r._quotaPct;
+        const qBarW = Math.max(0, Math.min(100, qPct));
+        const qBucket = r._quotaBucket;
+        // 状态列: 只在 qPct >= 70 时显示明显标签,其他用绿色圆点表示正常
+        var statusHtml;
+        if (qPct > 100) {
+          statusHtml = '<span class="status-chip status-chip--alert">已超额</span>';
+        } else if (qPct >= 90) {
+          statusHtml = '<span class="status-chip status-chip--alert">接近上限</span>';
+        } else if (qPct >= 70) {
+          statusHtml = '<span class="status-chip status-chip--warn">注意</span>';
+        } else {
+          statusHtml = '<span class="status-chip status-chip--ok" title="正常使用中"><span class="status-dot"></span>正常</span>';
+        }
+        return (
+          '<tr class="account-row" data-email="' + escapeHtml(r.email) + '" data-name="' + escapeHtml(r._name) + '">' +
+            '<td class="chk-col"><input type="checkbox" class="row-chk" aria-label="选择 ' + escapeHtml(r._name) + '" /></td>' +
+            '<td class="num idx-col">' + (r._idx + 1) + '</td>' +
+            '<td>' +
+              '<div class="account-row__name">' +
+                '<div class="avatar" style="background:' + color + '">' + escapeHtml(initial) + '</div>' +
+                '<span class="account-row__name-text">' + escapeHtml(r._name) + '</span>' +
+              '</div>' +
+            '</td>' +
+            '<td class="account-row__email mono" title="点击复制邮箱">' + escapeHtml(r.email) + '</td>' +
+            '<td class="num cell-in">' + App.formatTokens(r._input) + '</td>' +
+            '<td class="num cell-out">' + App.formatTokens(r._output) + '</td>' +
+            '<td class="num cell-total" tabindex="0" role="button" aria-label="' + escapeHtml(r._name) + ' 的模型消耗明细" data-models="' + escapeHtml(JSON.stringify(r._models || [])) + '"><strong>' + App.formatTokens(r._total) + '</strong></td>' +
+            '<td class="num quota-cell quota-cell--' + qBucket + (r._quotaOver ? ' quota-cell--over' : '') + '">' +
+              '<div class="quota-mini-bar" role="progressbar" aria-valuenow="' + Math.round(qPct) + '" aria-valuemin="0" aria-valuemax="100">' +
+                '<div class="quota-mini-bar__fill" style="width:' + qBarW.toFixed(1) + '%"></div>' +
+              '</div>' +
+              '<span class="quota-mini-pct mono">' + qPct.toFixed(1) + '%</span>' +
+            '</td>' +
+            '<td class="status-col-cell">' + statusHtml + '</td>' +
+          '</tr>'
+          // P1 UX fix (P1-3+4): 删掉行展开区 + toggle-detail 死代码。
+          // 之前的"快捷动作"区在 manage modal 里已经能做了,这个 detail 行
+          // 用户点击行没反应 → 死代码半成品。删除后:
+          //   - 行点击行为正常(无 hover-expand 预期)
+          //   - 复制邮箱/账号名通过点击 email 单元格 + manage modal
+          //   - 详情数据通过 manage modal 的列表展示
+        );
+      }).join("");
+
+      updateBatchBar();
+
+      // Sort indicators
+      document.querySelectorAll("#account-table th.sortable").forEach(function (th) {
+        const k = th.getAttribute("data-key");
+        const arrow = th.querySelector(".sort-arrow");
+        if (k === sortKey) {
+          th.classList.add("is-sorted");
+          arrow.textContent = sortDir === "asc" ? "▲" : "▼";
+        } else {
+          th.classList.remove("is-sorted");
+          arrow.textContent = "⇅";
+        }
+      });
+    }
+
+    // ----- 顶部筛选状态提示 ---------------------------------------
+
+    function updateFilterSummary(filteredCount, totalCount) {
+      var box = document.getElementById("filter-summary");
+      var text = document.getElementById("filter-summary-text");
+      if (!box || !text) return;
+      var hasSearch = (searchQuery && searchQuery.length > 0);
+      var hasUsageFilter = (typeof usageFilterValue !== "undefined" && usageFilterValue !== "all");
+      if (hasSearch || hasUsageFilter) {
+        box.hidden = false;
+        var parts = [];
+        if (hasSearch) parts.push('搜索 "' + searchQuery + '"');
+        if (hasUsageFilter) {
+          var label = usageFilterValue === "low" ? "< 70%" : usageFilterValue === "mid" ? "70% - 90%" : "> 90%";
+          parts.push("用量 " + label);
+        }
+        parts.push("命中 " + filteredCount + " / " + totalCount + " 个");
+        text.textContent = "当前筛选 · " + parts.join(" · ");
+      } else {
+        box.hidden = true;
+      }
+    }
+
+    // ----- 分页器:总数少时弱化 ---------------------------------------
+
+    function updatePagination(filteredCount, totalPages) {
+      var nav = document.getElementById("pagination-nav");
+      var info = document.getElementById("page-info");
+      if (pagePrev) pagePrev.disabled = currentPage <= 1;
+      if (pageNext) pageNext.disabled = currentPage >= totalPages;
+      if (pageCurrent) pageCurrent.textContent = String(currentPage);
+      if (info) {
+        if (totalPages <= 1) {
+          // 单页:只显示汇总,隐藏分页器
+          info.textContent = filteredCount === 0 ? "暂无数据" : "共 " + filteredCount + " 个账号";
+          if (nav) nav.style.display = "none";
+        } else {
+          var startIdx = (currentPage - 1) * pageSize;
+          var endIdx = Math.min(startIdx + pageSize, filteredCount);
+          info.textContent = "第 " + currentPage + " / " + totalPages + " 页 · 显示 " + (startIdx + 1) + "-" + endIdx + " · 共 " + filteredCount + " 个";
+          if (nav) nav.style.display = "flex";
+        }
+      }
+    }
+
+    // ----- Data load ------------------------------------------------
+
+    async function load(isRefresh) {
+      if (isRefresh) refreshBtn.classList.add("is-loading");
+      try {
+        // Status first:同步刷新 last-fetched chip / KPI 配额 / 进度条。
+        // 之前只 fetchAccounts 不 fetchStatus,导致点刷新按钮后 last-fetched
+        // 时间不更新,必须 F5 才会看到新值。Bug 修复(2026-07-07)。
+        try {
+          await refreshStatus();
+        } catch (statusErr) {
+          // status 拉取失败不阻塞 accounts 拉取;后续 30s 轮询会自愈
+          console.warn("status refresh failed:", statusErr);
+        }
+        const accounts = await App.fetchAccounts();
+        lastAccounts = accounts;
+        renderKpis(accounts, lastStatus);
+        renderTable(accounts);
+        App.cacheSet("accounts", accounts);
+      } catch (err) {
+        const cached = App.cacheGet("accounts");
+        if (cached && cached.value) {
+          lastAccounts = cached.value;
+          renderKpis(cached.value, lastStatus);
+          renderTable(cached.value);
+          App.showToast("使用上次缓存数据 · " + err.message, { variant: "info" });
+        } else {
+          var errTitle = "加载失败";
+          var errHint = escapeHtml(err.message);
+          var isForbidden = /403|forbidden|无权限|权限/i.test(err.message || "");
+          if (isForbidden) {
+            errTitle = "无权限访问";
+            errHint = "API 返回 403 · 请检查当前账号的访问凭证或联系管理员";
+          }
+          tbody.innerHTML =
+            '<tr><td colspan="9" class="empty-cell">' +
+              '<div class="empty-state empty-state--' + (isForbidden ? "forbidden" : "error") + '">' +
+                '<div class="empty-state__icon" aria-hidden="true">' +
+                  (isForbidden
+                    ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+                    : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>')
+                  + '</div>' +
+                '<div class="empty-state__title">' + errTitle + '</div>' +
+                '<div class="empty-state__hint">' + errHint + '</div>' +
+              '</div>' +
+            '</td></tr>';
+          updatePagination(0, 1);
+          App.showToast(err.message, { variant: "error" });
+        }
+      } finally {
+        if (isRefresh) refreshBtn.classList.remove("is-loading");
+      }
+    }
+
+    // ----- Bindings -------------------------------------------------
+
+    refreshBtn.addEventListener("click", async function () {
+      refreshBtn.classList.add("is-loading");
+      refreshBtn.disabled = true;
+      // P1-6: 启动时给个 progress toast,让用户知道要等多久。
+      // 20 个账号串行拉取可能要 10-30s,用户不明确知道是卡了还是慢
+      var startedAt = Date.now();
+      App.showToast("正在拉取最新数据...", { variant: "info", duration: 2000 });
+      try {
+        // Trigger a server-side fetch (one API call, all accounts) then
+        // reload the dashboard from the freshly written SQLite DB.
+        const result = await App.postRefresh();
+        if (result && result.cycle_start) {
+          var elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+          App.showToast(
+            "已抓取最新数据(" + result.users + " 个用户,耗时 " + elapsed + " 秒)",
+            { variant: "success" }
+          );
+        }
+        await load(true);
+      } catch (err) {
+        var failElapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+        App.showToast(
+          "刷新失败(" + failElapsed + " 秒):" + err.message,
+          { variant: "error" }
+        );
+        // Still re-read whatever is in the DB so UI state stays sane.
+        try { await load(false); } catch (_) {}
+      } finally {
+        refreshBtn.classList.remove("is-loading");
+        refreshBtn.disabled = false;
+      }
+    });
+
+    // ---- Send report button (opens the confirm modal) ----
+    const reportBtn = document.getElementById("report-btn");
+    if (reportBtn) {
+      reportBtn.addEventListener("click", function () {
+        openReportModal();
+      });
+    }
+
+    document.querySelectorAll("#account-table th.sortable").forEach(function (th) {
+      th.addEventListener("click", function () {
+        const k = th.getAttribute("data-key");
+        if (sortKey === k) {
+          sortDir = sortDir === "asc" ? "desc" : "asc";
+        } else {
+          sortKey = k;
+          const type = th.getAttribute("data-type") || "str";
+          sortDir = type === "num" ? "desc" : "asc";
+        }
+        if (lastAccounts.length) renderTable(lastAccounts);
+      });
+    });
+
+    searchInput.addEventListener("input", function () {
+      searchQuery = searchInput.value.trim();
+      var clearBtn = document.getElementById("search-clear");
+      if (clearBtn) clearBtn.hidden = searchQuery.length === 0;
+      currentPage = 1;
+      if (lastAccounts.length) renderTable(lastAccounts);
+    });
+    // 回车提交:聚焦到表格并给个反馈
+    searchInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        var tbodyEl = document.getElementById("tbody");
+        if (tbodyEl && lastAccounts.length) {
+          var firstRow = tbodyEl.querySelector(".account-row");
+          if (firstRow) {
+            firstRow.scrollIntoView({ behavior: "smooth", block: "center" });
+            firstRow.classList.add("is-flash");
+            setTimeout(function () { firstRow.classList.remove("is-flash"); }, 1200);
+          }
+        }
+        if (searchQuery) {
+          App.showToast("已搜索: " + searchQuery, { variant: "info" });
+        }
+      } else if (e.key === "Escape" && searchQuery) {
+        searchInput.value = "";
+        searchQuery = "";
+        var cb = document.getElementById("search-clear");
+        if (cb) cb.hidden = true;
+        if (lastAccounts.length) renderTable(lastAccounts);
+      }
+    });
+    // 清空按钮
+    var searchClearBtn = document.getElementById("search-clear");
+    if (searchClearBtn) {
+      searchClearBtn.addEventListener("click", function () {
+        searchInput.value = "";
+        searchQuery = "";
+        searchClearBtn.hidden = true;
+        currentPage = 1;
+        searchInput.focus();
+        if (lastAccounts.length) renderTable(lastAccounts);
+      });
+    }
+    // 清除筛选条
+    var filterSummaryClear = document.getElementById("filter-summary-clear");
+    if (filterSummaryClear) {
+      filterSummaryClear.addEventListener("click", function () {
+        searchInput.value = "";
+        searchQuery = "";
+        var cb = document.getElementById("search-clear");
+        if (cb) cb.hidden = true;
+        var filter = document.getElementById("filter-usage");
+        if (filter) filter.value = "all";
+        usageFilterValue = "all";
+        currentPage = 1;
+        if (lastAccounts.length) renderTable(lastAccounts);
+      });
+    }
+
+    // ----- Filter: usage range ---------------------------------------
+
+    var filterUsage = document.getElementById("filter-usage");
+    var usageFilterValue = "all";
+
+    filterUsage.addEventListener("change", function () {
+      usageFilterValue = filterUsage.value;
+      currentPage = 1;
+      if (lastAccounts.length) renderTable(lastAccounts);
+    });
+
+    // ----- Pagination -------------------------------------------------
+
+    var pageSize = 20;
+    var currentPage = 1;
+    var pageSizeSelect = document.getElementById("page-size-select");
+    var pagePrev = document.getElementById("page-prev");
+    var pageNext = document.getElementById("page-next");
+    var pageCurrent = document.getElementById("page-current");
+    var pageInfo = document.getElementById("page-info");
+
+    pageSizeSelect.addEventListener("change", function () {
+      pageSize = parseInt(pageSizeSelect.value, 10);
+      currentPage = 1;
+      if (lastAccounts.length) renderTable(lastAccounts);
+    });
+
+    pagePrev.addEventListener("click", function () {
+      if (currentPage > 1) { currentPage--; renderTable(lastAccounts); }
+    });
+    pageNext.addEventListener("click", function () {
+      var totalFiltered = applyFilterAndSort(decorateRows(lastAccounts), true).length;
+      var totalPages = Math.ceil(totalFiltered / pageSize) || 1;
+      if (currentPage < totalPages) { currentPage++; renderTable(lastAccounts); }
+    });
+
+    // ----- Select all / batch operations ------------------------------
+
+    document.addEventListener("change", function (e) {
+      if (e.target.id === "select-all" || e.target.id === "select-all-head") {
+        var checked = e.target.checked;
+        document.querySelectorAll("#tbody .row-chk").forEach(function (cb) { cb.checked = checked; });
+        document.getElementById("select-all").checked = checked;
+        document.getElementById("select-all-head").checked = checked;
+        updateBatchBar();
+      }
+    });
+
+    document.addEventListener("change", function (e) {
+      if (e.target.classList.contains("row-chk")) {
+        updateBatchBar();
+      }
+    });
+
+    function updateBatchBar() {
+      var checked = document.querySelectorAll("#tbody .row-chk:checked");
+      var bar = document.getElementById("batch-bar");
+      var count = document.getElementById("batch-count");
+      var allHead = document.getElementById("select-all-head");
+      var allBar = document.getElementById("select-all");
+      var total = document.querySelectorAll("#tbody .row-chk").length;
+      var n = checked.length;
+      bar.hidden = n === 0;
+      count.textContent = "已选 " + n + " 个";
+      var allChecked = n > 0 && n === total;
+      if (allHead) allHead.checked = allChecked;
+      if (allBar) allBar.checked = allChecked;
+    }
+
+    document.getElementById("batch-export").addEventListener("click", function () {
+      var checked = document.querySelectorAll("#tbody .row-chk:checked");
+      if (!checked.length) return;
+      var rows = [["账号","邮箱","Input","Output","消耗","配额使用率","状态"]];
+      checked.forEach(function (cb) {
+        var tr = cb.closest("tr");
+        if (!tr) return;
+        var cells = tr.querySelectorAll("td");
+        // 列顺序:chk(0)/idx(1)/name(2)/email(3)/input(4)/output(5)/total(6)/quota(7)/status(8)
+        rows.push([
+          tr.getAttribute("data-name") || "",
+          tr.getAttribute("data-email") || "",
+          cells[4] ? cells[4].textContent.trim() : "",
+          cells[5] ? cells[5].textContent.trim() : "",
+          cells[6] ? cells[6].textContent.trim() : "",
+          cells[7] ? cells[7].textContent.trim() : "",
+          cells[8] ? cells[8].textContent.trim() : "",
+        ]);
+      });
+      var csv = rows.map(function (r) { return r.map(function (c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+      var blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement("a");
+      a.href = url; a.download = "trae-accounts.csv"; a.click();
+      URL.revokeObjectURL(url);
+      App.showToast("已导出 " + checked.length + " 个账号", { variant: "success" });
+    });
+
+    // 顶部快捷:导出全部
+    var btnQuickExport = document.getElementById("btn-quick-export");
+    if (btnQuickExport) {
+      btnQuickExport.addEventListener("click", function () {
+        var allRows = [["账号","邮箱","Input","Output","消耗","配额使用率","状态"]];
+        document.querySelectorAll("#tbody .account-row").forEach(function (tr) {
+          var cells = tr.querySelectorAll("td");
+          allRows.push([
+            tr.getAttribute("data-name") || "",
+            tr.getAttribute("data-email") || "",
+            cells[4] ? cells[4].textContent.trim() : "",
+            cells[5] ? cells[5].textContent.trim() : "",
+            cells[6] ? cells[6].textContent.trim() : "",
+            cells[7] ? cells[7].textContent.trim() : "",
+            cells[8] ? cells[8].textContent.trim() : "",
+          ]);
+        });
+        var csv = allRows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
+        var blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement("a");
+        a.href = url; a.download = "trae-accounts-all.csv"; a.click();
+        URL.revokeObjectURL(url);
+        App.showToast("已导出当前页 " + allRows.length - 1 + " 个账号", { variant: "success" });
+      });
+    }
+
+    // 复制选中行的邮箱(批量)
+    var btnBatchCopy = document.getElementById("batch-copy");
+    if (btnBatchCopy) {
+      btnBatchCopy.addEventListener("click", function () {
+        var checked = document.querySelectorAll("#tbody .row-chk:checked");
+        if (!checked.length) return;
+        var emails = [];
+        checked.forEach(function (cb) {
+          var tr = cb.closest("tr");
+          if (tr) {
+            var email = tr.getAttribute("data-email");
+            if (email) emails.push(email);
+          }
+        });
+        var text = emails.join(", ");
+        copyText(text, "已复制 " + emails.length + " 个邮箱");
+      });
+    }
+
+    // 通用 copy helper
+    function copyText(text, successMsg) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(function () {
+          if (successMsg) App.showToast(successMsg, { variant: "success" });
+        }, function () { fallbackCopy(text, successMsg); });
+      } else {
+        fallbackCopy(text, successMsg);
+      }
+    }
+    function fallbackCopy(text, successMsg) {
+      var ta = document.createElement("textarea");
+      ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); if (successMsg) App.showToast(successMsg, { variant: "success" }); }
+      catch (e) { App.showToast("复制失败 · 请手动选择", { variant: "error" }); }
+      document.body.removeChild(ta);
+    }
+
+    // 行 hover / 点击 快捷动作(行内按钮 + 行展开)
+    document.addEventListener("click", function (e) {
+      var btn = e.target.closest("[data-act]");
+      if (!btn) return;
+      var act = btn.getAttribute("data-act");
+      var tr = btn.closest("tr");
+      if (act === "copy-email") {
+        var email = btn.getAttribute("data-email") || (tr && tr.getAttribute("data-email")) || "";
+        copyText(email, "已复制邮箱");
+      } else if (act === "copy-name") {
+        var name = btn.getAttribute("data-name") || (tr && tr.getAttribute("data-name")) || "";
+        copyText(name, "已复制账号名: " + name);
+      }
+      // P1 UX fix: 删掉 toggle-detail 分支 — 配合行展开区删除,
+      // 整个点击行展开特性下线,行现在是纯只读展示。
+    });
+
+    // 邮箱单元格点击复制(整列都可用)
+    document.addEventListener("click", function (e) {
+      var cell = e.target.closest("td.account-row__email");
+      if (!cell) return;
+      var email = cell.textContent.trim();
+      copyText(email, "已复制: " + email);
+    });
+    // P1-5: mouseover 注入 is-hoverable 类的逻辑不再需要——CSS 已经在
+    // .account-row__email 上永远 cursor:pointer + 虚线下划线
+
+    // ----- Row action menus ------------------------------------------
+
+    document.getElementById("theme-toggle").addEventListener("click", function () {
+      App.toggleTheme();
+    });
+
+    // ----- 列宽拖动(resize) ---------------------------------------
+
+    var COL_WIDTH_STORAGE_PREFIX = "trae.dashboard.colWidths.";
+    function loadColWidths(tableId) {
+      try {
+        var raw = localStorage.getItem(COL_WIDTH_STORAGE_PREFIX + tableId);
+        return raw ? JSON.parse(raw) : {};
+      } catch (_) { return {}; }
+    }
+    function saveColWidths(tableId, widths) {
+      try { localStorage.setItem(COL_WIDTH_STORAGE_PREFIX + tableId, JSON.stringify(widths)); }
+      catch (_) {}
+    }
+    function applyColWidths(table) {
+      var stored = loadColWidths(table.id);
+      if (!Object.keys(stored).length) return;
+      var cols = table.querySelectorAll("colgroup col");
+      cols.forEach(function (col, i) {
+        if (stored[i] != null) col.style.width = stored[i] + "px";
+      });
+    }
+
+    function attachColumnResize(table) {
+      if (!table || table.dataset.resizeAttached === "1") return;
+      table.dataset.resizeAttached = "1";
+      var thead = table.querySelector("thead");
+      var tbody = table.querySelector("tbody");
+      var cols = table.querySelectorAll("colgroup col");
+
+      // 为每个 th(除 chk-col 外)加 handle
+      var ths = thead.querySelectorAll("th");
+      ths.forEach(function (th, idx) {
+        if (th.classList.contains("chk-col")) return; // 第一列窄,不拖
+        if (th.querySelector(".th-resize-handle")) return;
+        var handle = document.createElement("div");
+        handle.className = "th-resize-handle";
+        handle.setAttribute("aria-hidden", "true");
+        th.appendChild(handle);
+      });
+
+      function getColIndex(th) {
+        // 找到 th 对应的 col 索引(用 cellIndex + 1)
+        var cellIndex = th.cellIndex;
+        return cellIndex;
+      }
+
+      var dragging = null;
+      function onDown(e) {
+        var handle = e.target.closest(".th-resize-handle");
+        if (!handle) return;
+        var th = handle.closest("th");
+        if (!th) return;
+        e.preventDefault();
+        e.stopPropagation();
+        var colIdx = getColIndex(th);
+        var col = cols[colIdx];
+        if (!col) return;
+        var currentWidth = col.getBoundingClientRect().width || parseFloat(col.style.width) || th.offsetWidth;
+        dragging = {
+          th: th,
+          col: col,
+          colIdx: colIdx,
+          startX: e.clientX,
+          startWidth: currentWidth,
+          min: 40,
+          max: 600
+        };
+        handle.classList.add("is-dragging");
+        document.body.classList.add("is-col-resizing");
+        th.classList.add("col-resize-active");
+      }
+      function onMove(e) {
+        if (!dragging) return;
+        e.preventDefault();
+        var delta = e.clientX - dragging.startX;
+        var newWidth = Math.max(dragging.min, Math.min(dragging.max, dragging.startWidth + delta));
+        dragging.col.style.width = newWidth + "px";
+        // 拖动期间临时禁用 thead sticky + table layout 防止视觉抖动
+        table.style.tableLayout = "fixed";
+        // 写入 colgroup 即可,table-layout:fixed 会自动同步 th/td 宽度
+      }
+      function onUp(e) {
+        if (!dragging) return;
+        e.preventDefault();
+        // 保存
+        var stored = loadColWidths(table.id);
+        stored[dragging.colIdx] = Math.round(parseFloat(dragging.col.style.width) || dragging.startWidth);
+        saveColWidths(table.id, stored);
+        // 清理
+        dragging.th.querySelector(".th-resize-handle").classList.remove("is-dragging");
+        dragging.th.classList.remove("col-resize-active");
+        document.body.classList.remove("is-col-resizing");
+        dragging = null;
+      }
+
+      thead.addEventListener("mousedown", onDown);
+      document.addEventListener("mousemove", onMove);
+      document.addEventListener("mouseup", onUp);
+
+      // 双击 handle → 恢复该列默认宽度
+      thead.addEventListener("dblclick", function (e) {
+        var handle = e.target.closest(".th-resize-handle");
+        if (!handle) return;
+        var th = handle.closest("th");
+        if (!th) return;
+        var colIdx = getColIndex(th);
+        var col = cols[colIdx];
+        if (!col) return;
+        // 清空 inline style,让 colgroup 的原 width 生效
+        col.style.width = "";
+        var stored = loadColWidths(table.id);
+        delete stored[colIdx];
+        saveColWidths(table.id, stored);
+        App.showToast("已重置该列宽度", { variant: "info" });
+      });
+
+      // 初始化时恢复已保存的列宽
+      applyColWidths(table);
+    }
+
+    // ----- Init -----------------------------------------------------
+
+    // 表格列宽拖动(挂在表格 thead 上,与数据渲染无关)
+    attachColumnResize(document.getElementById("account-table"));
+
+    refreshStatus();
+    load(false);
+    // No background polling. Data only refreshes when the user clicks
+    // the refresh button (POST /api/refresh). The countdown ticker is
+    // local to the page so we keep one lightweight 60s tick to update
+    // the "还有 X 天 Y 时 Z 分" display.
+    setInterval(function () {
+      if (lastEnriched && lastEnriched.nextResetAt) {
+        var cdText = App.formatCountdown(lastEnriched.nextResetAt);
+        var countdownEl = document.getElementById("countdown-display");
+        if (countdownEl && cdText) {
+          countdownEl.textContent = "重置于 " + cdText + " 后";
+        }
+      }
+    }, 60 * 1000);
+
+    // ----- Account Management Modal -------------------------------
+
+    // 通用 focus trap:Tab 在 modal 内循环,Shift+Tab 反向循环。
+    // 防止键盘用户 Tab 出 modal 到背景页(WCAG 2.4.3)。
+    function trapFocusIn(modal, e) {
+      if (e.key !== "Tab") return;
+      var focusables = modal.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      );
+      if (!focusables.length) return;
+      var first = focusables[0];
+      var last = focusables[focusables.length - 1];
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+
+    var manageModal = document.getElementById("manage-accounts-modal");
+    var manageOpenBtn = document.getElementById("btn-manage-accounts");
+    var manageCloseBtn = document.getElementById("manage-modal-close");
+    var manageAddForm = document.getElementById("manage-add-form");
+    var manageAddEmail = document.getElementById("manage-add-email");
+    var manageAddName = document.getElementById("manage-add-name");
+    var manageAddSubmit = document.getElementById("manage-add-submit");
+    var manageAddError = document.getElementById("manage-add-error");
+    var manageListEl = document.getElementById("manage-list");
+    var manageListCount = document.getElementById("manage-list-count");
+    var lastManageFocus = null;
+
+    function openManageModal() {
+      lastManageFocus = document.activeElement;
+      renderManageList();
+      manageAddError.hidden = true;
+      manageAddEmail.classList.remove("is-invalid");
+      manageAddName.classList.remove("is-invalid");
+      manageModal.hidden = false;
+      // Defer focus so the click target is not the active element
+      setTimeout(function () { manageAddEmail.focus(); }, 0);
+    }
+    function closeManageModal() {
+      manageModal.hidden = true;
+      manageAddForm.reset();
+      manageAddError.hidden = true;
+      if (lastManageFocus && typeof lastManageFocus.focus === "function") {
+        try { lastManageFocus.focus(); } catch (_) {}
+      }
+    }
+    function showManageError(msg) {
+      manageAddError.textContent = msg;
+      manageAddError.hidden = false;
+    }
+    function renderManageList() {
+      var accounts = (lastAccounts || []).slice();
+      // 排序:本周期消耗 desc(和主表格一致),方便用户先看到"大户"
+      accounts.sort(function (a, b) {
+        return ((b.consumed || 0)) - ((a.consumed || 0));
+      });
+      manageListCount.textContent = accounts.length + " 个账号";
+      if (!accounts.length) {
+        manageListEl.innerHTML = '<div class="modal__list-empty">尚未添加任何账号</div>';
+        return;
+      }
+      manageListEl.innerHTML = accounts.map(function (a) {
+        var name = a.display_name || (a.email || "").split("@")[0] || "(未命名)";
+        var initial = App.initial(name);
+        var hue = App.hueFor(a.email || name);
+        var color = "hsl(" + hue + " 60% 55%)";
+        var consumed = Number(a.consumed) || 0;
+        return (
+          '<div class="modal__list-item" data-email="' + escapeHtml(a.email) + '" data-name="' + escapeHtml(name) + '">' +
+            '<span class="modal__list-avatar" style="background:' + color + '">' + escapeHtml(initial) + '</span>' +
+            '<div class="modal__list-text">' +
+              '<div class="modal__list-name">' + escapeHtml(name) + '</div>' +
+              '<div class="modal__list-email">' + escapeHtml(a.email) + '</div>' +
+            '</div>' +
+            '<span class="modal__list-meta">' + App.formatTokens(consumed) + '</span>' +
+            '<button type="button" class="modal__list-del" data-del-email="' + escapeHtml(a.email) + '" data-del-name="' + escapeHtml(name) + '">删除</button>' +
+          '</div>'
+        );
+      }).join("");
+    }
+
+    if (manageOpenBtn) {
+      manageOpenBtn.addEventListener("click", openManageModal);
+    }
+    if (manageCloseBtn) {
+      manageCloseBtn.addEventListener("click", closeManageModal);
+    }
+    // 点遮罩关闭(但点 modal 本身不关)
+    if (manageModal) {
+      manageModal.addEventListener("click", function (e) {
+        if (e.target === manageModal) closeManageModal();
+      });
+    }
+    // Esc 关闭 + Tab focus trap
+    document.addEventListener("keydown", function (e) {
+      // 先处理 help modal(若打开)
+      if (helpModal && !helpModal.hidden) {
+        if (e.key === "Escape") {
+          closeHelpModal();
+        } else {
+          trapFocusIn(helpModal, e);
+        }
+        return;
+      }
+      if (manageModal && !manageModal.hidden) {
+        if (e.key === "Escape") {
+          closeManageModal();
+        } else {
+          trapFocusIn(manageModal, e);
+        }
+      }
+    });
+
+    // ----- Help Modal ----------------------------------------------
+
+    var helpModal = document.getElementById("help-modal");
+    var helpOpenBtn = document.getElementById("help-btn");
+    var helpCloseBtn = document.getElementById("help-modal-close");
+    var helpAccountCount = document.getElementById("help-modal-account-count");
+    var lastHelpFocus = null;
+
+    function openHelpModal() {
+      lastHelpFocus = document.activeElement;
+      if (helpAccountCount) {
+        helpAccountCount.textContent = (lastAccounts && lastAccounts.length) || 0;
+      }
+      helpModal.hidden = false;
+      setTimeout(function () { helpCloseBtn.focus(); }, 0);
+    }
+    function closeHelpModal() {
+      helpModal.hidden = true;
+      if (lastHelpFocus && typeof lastHelpFocus.focus === "function") {
+        try { lastHelpFocus.focus(); } catch (_) {}
+      }
+    }
+    if (helpOpenBtn) helpOpenBtn.addEventListener("click", openHelpModal);
+    if (helpCloseBtn) helpCloseBtn.addEventListener("click", closeHelpModal);
+    if (helpModal) {
+      helpModal.addEventListener("click", function (e) {
+        if (e.target === helpModal) closeHelpModal();
+      });
+    }
+
+    // 新增账号表单提交
+    if (manageAddForm) {
+      manageAddForm.addEventListener("submit", async function (e) {
+        e.preventDefault();
+        manageAddError.hidden = true;
+        manageAddEmail.classList.remove("is-invalid");
+        var email = (manageAddEmail.value || "").trim();
+        var name = (manageAddName.value || "").trim();
+        if (!email) {
+          manageAddEmail.classList.add("is-invalid");
+          showManageError("请输入邮箱");
+          manageAddEmail.focus();
+          return;
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          manageAddEmail.classList.add("is-invalid");
+          showManageError("邮箱格式不正确");
+          manageAddEmail.focus();
+          return;
+        }
+        manageAddSubmit.disabled = true;
+        try {
+          await App.apiPost("/api/accounts", {
+            email: email,
+            display_name: name || null,
+          });
+          App.showToast("已添加账号: " + email, { variant: "success" });
+          // 重新拉数据 + 重渲染 modal 列表
+          await load(false);
+          renderManageList();
+          manageAddForm.reset();
+          manageAddEmail.focus();
+        } catch (err) {
+          showManageError(err.message || "添加失败");
+        } finally {
+          manageAddSubmit.disabled = false;
+        }
+      });
+    }
+
+    // 删除账号(事件代理)
+    if (manageListEl) {
+      manageListEl.addEventListener("click", async function (e) {
+        var btn = e.target.closest("[data-del-email]");
+        if (!btn) return;
+        var email = btn.getAttribute("data-del-email");
+        var name = btn.getAttribute("data-del-name") || email;
+        var consumedRow = btn.closest(".modal__list-item");
+        var consumedText = consumedRow
+          ? consumedRow.querySelector(".modal__list-meta")
+          : null;
+        var consumedHint = consumedText ? "本周期已消耗 " + consumedText.textContent : "";
+        // P0 UX fix (P0-2): 用 type-to-confirm 替代单纯 OK/Cancel 弹窗。
+        // native confirm 太快,容易误点 OK。强制用户输入显示名
+        // 才能确认,避免误删。Snapshots 不会被删(审计可查),但账号
+        // + model_usage 会被级联清除,体感"灾难性"。
+        var typed = window.prompt(
+          "删除账号 " + name + "(不可撤销)\n\n" +
+          "邮箱:" + email + "\n" +
+          consumedHint + "\n\n" +
+          "请输入显示名 \"" + name + "\" 以确认:",
+          ""
+        );
+        if (typed === null) return; // 取消
+        if (typed.trim() !== name) {
+          App.showToast("已取消:显示名不匹配", { variant: "info" });
+          return;
+        }
+        // 禁用所有删除按钮防双击
+        var allBtns = manageListEl.querySelectorAll(".modal__list-del");
+        allBtns.forEach(function (b) { b.disabled = true; });
+        try {
+          await App.apiDelete("/api/accounts/" + encodeURIComponent(email));
+          App.showToast("已删除账号: " + name, { variant: "success" });
+          await load(false);
+          renderManageList();
+        } catch (err) {
+          App.showToast("删除失败:" + (err.message || "未知错误"), { variant: "error" });
+          allBtns.forEach(function (b) { b.disabled = false; });
+        }
+      });
+    }
+
+    // ----- Send Report Modal --------------------------------------
+    var reportModal = document.getElementById("report-modal");
+    var reportModalCloseBtn = document.getElementById("report-modal-close");
+    var reportModalCancelBtn = document.getElementById("report-modal-cancel");
+    var reportModalSendBtn = document.getElementById("report-modal-send");
+    var reportRecipientsListEl = document.getElementById("report-recipients-list");
+    var reportRecipientsMetaEl = document.getElementById("report-recipients-meta");
+    var reportPreviewSubjectEl = document.getElementById("report-preview-subject");
+    var reportPreviewLoadingEl = document.getElementById("report-preview-loading");
+    var reportPreviewErrorEl = document.getElementById("report-preview-error");
+    var reportPreviewIframe = document.getElementById("report-preview-iframe");
+    var reportStatusBanner = document.getElementById("report-modal-status");
+    var reportFooterHint = document.getElementById("report-footer-hint");
+    var lastReportFocus = null;
+
+    // State for the current open modal
+    var reportState = {
+      config: null,        // { recipients: [...], enabled, smtp_host, ... }
+      selected: new Set(), // currently selected recipient emails
+      previewHtml: "",     // last rendered preview HTML
+      previewSubject: "",  // last rendered preview subject
+      sending: false,
+    };
+
+    function setReportStatus(msg, kind) {
+      // kind: "" | "error" | "warn"
+      if (!msg) {
+        reportStatusBanner.hidden = true;
+        reportStatusBanner.textContent = "";
+        reportStatusBanner.classList.remove("is-error", "is-warn");
+        return;
+      }
+      reportStatusBanner.hidden = false;
+      reportStatusBanner.textContent = msg;
+      reportStatusBanner.classList.remove("is-error", "is-warn");
+      if (kind === "error") reportStatusBanner.classList.add("is-error");
+      else if (kind === "warn") reportStatusBanner.classList.add("is-warn");
+    }
+
+    function renderReportRecipients() {
+      var cfg = reportState.config;
+      if (!cfg) {
+        reportRecipientsListEl.innerHTML =
+          '<span class="report-modal__preview-loading">配置加载中…</span>';
+        reportRecipientsMetaEl.textContent = "— 位收件人 · 已选 — 位";
+        return;
+      }
+      var all = cfg.recipients || [];
+      if (!all.length) {
+        reportRecipientsListEl.innerHTML =
+          '<span class="report-modal__preview-loading">未配置收件人，请先编辑 config.yaml 的 email.recipients</span>';
+        reportRecipientsMetaEl.textContent = "0 位收件人 · 已选 0 位";
+        return;
+      }
+      reportRecipientsListEl.innerHTML = "";
+      all.forEach(function (addr) {
+        var chip = document.createElement("label");
+        chip.className = "report-recipient-chip";
+        var checked = reportState.selected.has(addr);
+        if (checked) chip.classList.add("is-checked");
+        chip.innerHTML =
+          '<svg class="report-recipient-chip__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+          (checked
+            ? '<polyline points="20,6 9,17 4,12"/>'
+            : '<polyline points="0,0 0,0" stroke="none"/>') +
+          "</svg>" +
+          "<span>" + escapeHtml(addr) + "</span>";
+        var cb = document.createElement("input");
+        cb.type = "checkbox";
+        cb.checked = checked;
+        cb.style.display = "none";
+        cb.addEventListener("change", function () {
+          if (cb.checked) reportState.selected.add(addr);
+          else reportState.selected.delete(addr);
+          renderReportRecipients();
+        });
+        // Clicking the chip toggles the hidden checkbox.
+        chip.addEventListener("click", function (e) {
+          e.preventDefault();
+          cb.checked = !cb.checked;
+          cb.dispatchEvent(new Event("change"));
+        });
+        chip.appendChild(cb);
+        reportRecipientsListEl.appendChild(chip);
+      });
+      var selectedCount = reportState.selected.size;
+      reportRecipientsMetaEl.textContent =
+        all.length + " 位收件人 · 已选 " + selectedCount + " 位";
+      // Disable send button if no recipients selected.
+      reportModalSendBtn.disabled = selectedCount === 0 || reportState.sending;
+      updateReportFooterHint();
+    }
+
+    function updateReportFooterHint() {
+      if (reportState.sending) {
+        reportFooterHint.textContent = "正在发送邮件…";
+        return;
+      }
+      var n = reportState.selected.size;
+      reportFooterHint.textContent =
+        "已选 " + n + " 位收件人 · 预览展示完整报告内容（与实际邮件一致）";
+    }
+
+    function resetReportPreview() {
+      reportPreviewLoadingEl.hidden = false;
+      reportPreviewLoadingEl.textContent = "正在生成预览…";
+      reportPreviewErrorEl.hidden = true;
+      reportPreviewErrorEl.textContent = "";
+      reportPreviewIframe.hidden = true;
+      reportPreviewIframe.srcdoc = "";
+      reportPreviewSubjectEl.textContent = "—";
+    }
+
+    function showReportPreviewError(msg) {
+      reportPreviewLoadingEl.hidden = true;
+      reportPreviewIframe.hidden = true;
+      reportPreviewErrorEl.hidden = false;
+      reportPreviewErrorEl.textContent = msg;
+    }
+
+    function showReportPreviewHtml(html, subject) {
+      reportState.previewHtml = html;
+      reportState.previewSubject = subject;
+      reportPreviewLoadingEl.hidden = true;
+      reportPreviewErrorEl.hidden = true;
+      reportPreviewIframe.hidden = false;
+      // srcdoc renders the HTML inside the sandboxed iframe.
+      reportPreviewIframe.srcdoc = html;
+      reportPreviewSubjectEl.textContent = subject || "—";
+    }
+
+    async function fetchReportPreview() {
+      resetReportPreview();
+      try {
+        var result = await App.apiPost("/api/report", { preview: true });
+        showReportPreviewHtml(result.html, result.subject);
+      } catch (err) {
+        showReportPreviewError("预览生成失败: " + (err.message || err));
+      }
+    }
+
+    async function openReportModal() {
+      if (!reportModal) return;
+      lastReportFocus = document.activeElement;
+      reportState.sending = false;
+      setReportStatus("");
+      resetReportPreview();
+      // Reset recipients area to loading state.
+      reportRecipientsListEl.innerHTML =
+        '<span class="report-modal__preview-loading">加载中…</span>';
+      reportRecipientsMetaEl.textContent = "— 位收件人 · 已选 — 位";
+      reportModalSendBtn.disabled = true;
+      reportFooterHint.textContent = "改动仅对本次发送生效，不会写回 config.yaml";
+      reportModal.hidden = false;
+      // Autofocus 到取消按钮(稳定元素,不会因后续 await 失焦)。
+      // 放在 await 之前,确保键盘用户立刻有焦点落在 modal 内。
+      if (reportModalCloseBtn) {
+        setTimeout(function () { reportModalCloseBtn.focus(); }, 0);
+      }
+
+      // 1. Fetch config (recipients list, enabled, smtp info).
+      try {
+        var cfg = await App.apiGet("/api/report/config");
+        reportState.config = cfg;
+        // Pre-select all configured recipients.
+        reportState.selected = new Set(cfg.recipients || []);
+        renderReportRecipients();
+        if (!cfg.enabled) {
+          setReportStatus(
+            "⚠ config.yaml 中 email.enabled=false，发送将失败。请先在配置中启用邮件报告。",
+            "warn"
+          );
+        } else if (!cfg.smtp_host) {
+          setReportStatus(
+            "⚠ SMTP 主机未配置，发送可能失败。",
+            "warn"
+          );
+        }
+      } catch (err) {
+        reportRecipientsListEl.innerHTML = "";
+        setReportStatus(
+          "加载邮件配置失败: " + (err.message || err),
+          "error"
+        );
+        return;
+      }
+
+      // 2. Fetch preview HTML (independent of recipient selection — preview
+      //    always uses the configured data; only the recipients differ).
+      await fetchReportPreview();
+    }
+
+    function closeReportModal() {
+      if (!reportModal) return;
+      reportModal.hidden = true;
+      // Clear state to free memory + avoid stale iframe content.
+      reportPreviewIframe.srcdoc = "";
+      reportState.previewHtml = "";
+      reportState.selected = new Set();
+      reportState.config = null;
+      setReportStatus("");
+      if (lastReportFocus && typeof lastReportFocus.focus === "function") {
+        try { lastReportFocus.focus(); } catch (_) {}
+      }
+    }
+
+    if (reportModalCloseBtn) {
+      reportModalCloseBtn.addEventListener("click", closeReportModal);
+    }
+    if (reportModalCancelBtn) {
+      reportModalCancelBtn.addEventListener("click", closeReportModal);
+    }
+    if (reportModal) {
+      // Click on overlay (outside the modal box) closes.
+      reportModal.addEventListener("click", function (e) {
+        if (e.target === reportModal) closeReportModal();
+      });
+    }
+    // Esc closes + Tab focus trap (only when report modal is the visible one).
+    document.addEventListener("keydown", function (e) {
+      if (!reportModal || reportModal.hidden) return;
+      if (e.key === "Escape") {
+        closeReportModal();
+      } else {
+        trapFocusIn(reportModal, e);
+      }
+    });
+
+    // Send button — calls /api/report with the currently selected recipients.
+    if (reportModalSendBtn) {
+      reportModalSendBtn.addEventListener("click", async function () {
+        if (reportState.sending) return;
+        var selected = Array.from(reportState.selected);
+        if (!selected.length) {
+          setReportStatus("请至少选择一位收件人", "error");
+          return;
+        }
+        reportState.sending = true;
+        reportModalSendBtn.disabled = true;
+        reportModalSendBtn.classList.add("is-loading");
+        reportModalSendBtn.querySelector(".btn__label").textContent = "发送中…";
+        reportModalCancelBtn.disabled = true;
+        reportModalCloseBtn.disabled = true;
+        updateReportFooterHint();
+        setReportStatus("");
+        try {
+          var result = await App.apiPost("/api/report", {
+            recipients: selected,
+          });
+          var count = (result && result.recipient_count) || selected.length;
+          var totalConsumed =
+            result && typeof result.total_consumed === "number"
+              ? result.total_consumed
+              : null;
+          var detail =
+            totalConsumed !== null
+              ? "（" + count + " 位收件人，总消耗 " + totalConsumed + "）"
+              : "（" + count + " 位收件人）";
+          App.showToast("已发送邮件报告" + detail, { variant: "success" });
+          closeReportModal();
+        } catch (err) {
+          setReportStatus(
+            "发送失败: " + (err.message || err),
+            "error"
+          );
+        } finally {
+          reportState.sending = false;
+          reportModalSendBtn.classList.remove("is-loading");
+          reportModalSendBtn.querySelector(".btn__label").textContent = "确认发送";
+          reportModalSendBtn.disabled = reportState.selected.size === 0;
+          reportModalCancelBtn.disabled = false;
+          reportModalCloseBtn.disabled = false;
+          updateReportFooterHint();
+        }
+      });
+    }
+  })();
+  </script>
+</body>
+</html>

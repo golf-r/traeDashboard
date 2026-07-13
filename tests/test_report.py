@@ -315,3 +315,26 @@ class TestRenderHtml:
         html = render_html(rows, cfg, start, now)
         assert "<script>" not in html
         assert "&lt;script&gt;" in html
+
+    def test_total_quota_uses_row_count_not_cfg_accounts(self):
+        """Regression: total_quota must use len(rows), not len(cfg.accounts).
+
+        Accounts added at runtime via POST /api/accounts live in the DB
+        but never in config.yaml. Using len(cfg.accounts) under-counts
+        the company and inflates utilization_pct.
+        """
+        from datetime import datetime, timezone
+
+        # cfg.accounts is empty, but rows has 13 entries — this mirrors
+        # the production case where the 13th account was added via API.
+        cfg = _make_config(per_account_quota=50_000_000)
+        assert cfg.accounts == []
+        rows = [ReportRow(f"u{i}@x.com", f"u{i}@x.com", 0, 0, 0, 0.0, "—", 0)
+                for i in range(13)]
+        start = datetime(2026, 6, 10, tzinfo=timezone.utc)
+        now = datetime(2026, 7, 6, tzinfo=timezone.utc)
+        html = render_html(rows, cfg, start, now)
+        # 13 accounts × 50M = 650M (display: "650.0M")
+        assert "650.0M" in html
+        # 600M (the buggy value) must NOT appear.
+        assert "600.0M" not in html

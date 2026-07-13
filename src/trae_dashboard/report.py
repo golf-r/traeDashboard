@@ -141,7 +141,13 @@ def render_html(
     compatibility. Output is a UTF-8 HTML string.
     """
     total_consumed = sum(r.consumed for r in rows)
-    total_quota = cfg.per_account_quota * len(cfg.accounts)
+    # Use the rendered row count (driven by storage) as the denominator,
+    # not `len(cfg.accounts)`. Accounts added via the dashboard's
+    # POST /api/accounts endpoint are persisted in the DB but never
+    # written back to config.yaml — counting them from cfg would silently
+    # under-count the company and inflate utilization_pct. This matches
+    # the /api/status endpoint's formula.
+    total_quota = cfg.per_account_quota * len(rows)
     total_pct = (
         round((total_consumed / total_quota) * 100, 1) if total_quota > 0 else 0.0
     )
@@ -187,7 +193,7 @@ def render_html(
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head><meta charset="utf-8"><title>Trae Dashboard 日报</title></head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,'Microsoft YaHei','微软雅黑','PingFang SC','Hiragino Sans GB','Noto Sans CJK SC',sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;">
     <tr><td align="center" style="padding:24px 12px;">
       <table role="presentation" width="720" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">

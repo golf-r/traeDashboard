@@ -141,7 +141,12 @@ def _serve(config_path: Path, host: str, port: int, *, scheduler: bool = False) 
         storage.upsert_account(a.email, a.display_name)
     if scheduler:
         start_scheduler(cfg, storage)
-    app = create_app(cfg=cfg, storage=storage)
+    app = create_app(
+        cfg=cfg,
+        storage=storage,
+        config_path=config_path,
+        env_path=config_path.parent / ".env",
+    )
     uvicorn.run(app, host=host, port=port, log_level="info")
 
 

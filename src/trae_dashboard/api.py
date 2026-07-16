@@ -8,12 +8,19 @@ Routes:
   DELETE /api/accounts/{email}        - remove a managed account (cascades model_usage)
   GET    /api/accounts/{email}/history - per-model breakdown for one account
   POST   /api/refresh                 - trigger a synchronous fetch (no scheduler)
+  POST   /api/report                  - render / send the daily email report
+  GET    /api/report/config           - read-only email config (no secrets)
+  PUT    /api/report/recipients       - write email.recipients back to config.yaml
+  PUT    /api/report/smtp             - write SMTP fields back to config.yaml
+  POST   /api/report/smtp/password    - write SMTP password to .env
+  POST   /api/report/eml              - export report as .eml (no SMTP)
   GET    /favicon.ico                 - tiny inline 1x1 PNG (no 404 noise)
 
 Static files (index.html + app.js + style.css) are mounted AFTER the API
 routes so /api/* paths win the route match.
 """
 from __future__ import annotations
+import os
 import re
 from datetime import datetime, timezone
 from pathlib import Path
@@ -32,6 +39,12 @@ from .config import Config
 from .cycle import current_cycle_window, next_cycle_reset
 from .scheduler import make_collector
 from .storage import Storage
+from .config_writer import (
+    save_recipients,
+    save_email_config,
+    save_env_var,
+)
+from . import config_writer as _cw
 
 
 # Email validation lives in trae_dashboard.validation so the API layer
@@ -100,8 +113,63 @@ class ReportIn(BaseModel):
     recipients: list[str] | None = None
 
 
-def create_app(*, cfg: Config, storage: Storage) -> FastAPI:
+class RecipientsIn(BaseModel):
+    """Request body for PUT /api/report/recipients."""
+
+    recipients: list[str]
+
+
+class SmtpIn(BaseModel):
+    """Request body for PUT /api/report/smtp.
+
+    All five SMTP fields are required; validation is delegated to
+    ``save_email_config`` which raises ValueError on bad input.
+    """
+
+    smtp_host: str
+    smtp_port: int
+    smtp_user: str
+    from_addr: str
+    send_time: str
+
+
+class PasswordIn(BaseModel):
+    """Request body for POST /api/report/smtp/password.
+
+    The password is written to ``.env`` (never returned in any response).
+    """
+
+    password: str
+
+
+def create_app(
+    *,
+    cfg: Config,
+    storage: Storage,
+    config_path: Path | None = None,
+    env_path: Path | None = None,
+) -> FastAPI:
     app = FastAPI(title="Trae Token Dashboard")
+
+    # Default env path = config_path's sibling .env (mirrors `.env` usage).
+    if env_path is None and config_path is not None:
+        env_path = config_path.parent / ".env"
+
+    def _smtp_password_set() -> bool:
+        """True iff `cfg.email.smtp_password_env` is set in env.
+
+        Checks the process environment first (cheaper; covers the case
+        where `.env` was loaded at startup), then falls back to reading
+        `env_path` directly so edits made after server boot are picked
+        up without a restart.
+        """
+        env_name = cfg.email.smtp_password_env
+        if os.environ.get(env_name):
+            return True
+        if env_path is None or not env_path.exists():
+            return False
+        from dotenv import dotenv_values
+        return bool(dotenv_values(env_path).get(env_name))
 
     @app.get("/api/health")
     def health():
@@ -412,7 +480,167 @@ def create_app(*, cfg: Config, storage: Storage) -> FastAPI:
             "from_addr": cfg.email.from_addr,
             "recipients": list(cfg.email.recipients),
             "send_time": cfg.email.send_time,
+            "smtp_password_set": _smtp_password_set(),
         }
+
+    @app.put("/api/report/recipients")
+    def put_recipients(body: RecipientsIn):
+        """Persist a new recipients list to config.yaml.
+
+        Validates each address, trims/lowercases/dedups, writes the file,
+        and syncs the in-memory `cfg.email.recipients` so subsequent
+        reads see the updated list without a restart.
+        """
+        if config_path is None:
+            raise HTTPException(status_code=500, detail="config_path not wired")
+        # Validate
+        cleaned: list[str] = []
+        for r in body.recipients:
+            addr = (r or "").strip().lower()
+            if not addr:
+                continue
+            if not _EMAIL_RE.match(addr):
+                raise HTTPException(
+                    status_code=400, detail=f"invalid recipient email: {r!r}"
+                )
+            cleaned.append(addr)
+        seen: set[str] = set()
+        deduped = [a for a in cleaned if not (a in seen or seen.add(a))]
+        # Persist (may raise ValueError on YAML issues → 500)
+        try:
+            save_recipients(config_path, deduped)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"save_recipients failed: {e}"
+            ) from e
+        # Sync in-memory (dataclasses are mutable)
+        cfg.email.recipients = deduped
+        return {"recipients": list(cfg.email.recipients)}
+
+    @app.put("/api/report/smtp")
+    def put_smtp(body: SmtpIn):
+        """Persist SMTP fields to config.yaml; preserves recipients.
+
+        Field validation is delegated to ``save_email_config`` (returns
+        400 on ValueError, 500 on other failures).
+        """
+        if config_path is None:
+            raise HTTPException(status_code=500, detail="config_path not wired")
+        try:
+            save_email_config(
+                config_path,
+                smtp_host=body.smtp_host,
+                smtp_port=body.smtp_port,
+                smtp_user=body.smtp_user,
+                from_addr=body.from_addr,
+                send_time=body.send_time,
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"save_email_config failed: {e}"
+            ) from e
+        # Sync in-memory
+        cfg.email.smtp_host = body.smtp_host.strip()
+        cfg.email.smtp_port = int(body.smtp_port)
+        cfg.email.smtp_user = body.smtp_user.strip()
+        cfg.email.from_addr = body.from_addr.strip()
+        cfg.email.send_time = body.send_time.strip()
+        # Reload recipients from disk so the response (and the Send tab
+        # in the UI) reflects what is actually on disk — the file may
+        # have been edited outside this process.
+        try:
+            data = _cw._load_yaml(config_path)
+            email_section = data.get("email") if isinstance(data, dict) else None
+            if isinstance(email_section, dict):
+                raw_recipients = email_section.get("recipients", [])
+                if isinstance(raw_recipients, list):
+                    cfg.email.recipients = [
+                        str(r).strip() for r in raw_recipients if str(r).strip()
+                    ]
+        except Exception:
+            # Reload failure should not mask a successful save.
+            pass
+        return {
+            "smtp_host": cfg.email.smtp_host,
+            "smtp_port": cfg.email.smtp_port,
+            "smtp_user": cfg.email.smtp_user,
+            "from_addr": cfg.email.from_addr,
+            "send_time": cfg.email.send_time,
+            "recipients": list(cfg.email.recipients),
+        }
+
+    @app.post("/api/report/smtp/password")
+    def post_smtp_password(body: PasswordIn):
+        """Persist SMTP password to ``.env``.
+
+        The password is never echoed back — only a boolean
+        ``smtp_password_set`` flag. The frontend can re-call GET
+        /api/report/config to refresh the status display.
+        """
+        if env_path is None:
+            raise HTTPException(status_code=500, detail="env_path not wired")
+        try:
+            save_env_var(env_path, cfg.email.smtp_password_env, body.password)
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"save_env_var failed: {e}"
+            ) from e
+        return {"smtp_password_set": True}
+
+    @app.post("/api/report/eml")
+    def post_eml(body: ReportIn | None = None):
+        """Export the report as an RFC-822 ``.eml`` file (no SMTP send).
+
+        Unlike ``POST /api/report`` this endpoint:
+          - never sends email (`send=False` regardless of payload),
+          - works even when ``email.enabled`` is false (pure export),
+          - accepts an empty recipients list (the user's mail client
+            fills in the To: header on display),
+          - returns ``message/rfc822`` with a Content-Disposition so
+            browsers download it as ``trae-report-YYYY-MM-DD.eml``.
+        """
+        from .report import build_eml, run_report
+
+        payload = body or ReportIn()
+        recipients_override = payload.recipients
+        if recipients_override is not None:
+            cleaned: list[str] = []
+            for r in recipients_override:
+                addr = (r or "").strip().lower()
+                if not addr:
+                    continue
+                if not _EMAIL_RE.match(addr):
+                    raise HTTPException(
+                        status_code=400, detail=f"invalid recipient email: {r!r}"
+                    )
+                cleaned.append(addr)
+            recipients_override = cleaned
+        # Build a temporary EmailConfig with the override (empty allowed)
+        from dataclasses import replace as _dc_replace
+        email_cfg = cfg.email
+        if recipients_override is not None:
+            email_cfg = _dc_replace(email_cfg, recipients=list(recipients_override))
+        # Render the report with the overridden recipients so subject/to match.
+        try:
+            summary = run_report(
+                storage,
+                cfg,
+                recipients_override=recipients_override,
+                send=False,  # NEVER send
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"render failed: {e}") from e
+        raw = build_eml(email_cfg, summary["subject"], summary["html"])
+        filename = f'trae-report-{datetime.now(timezone.utc).strftime("%Y-%m-%d")}.eml'
+        return Response(
+            content=raw,
+            media_type="message/rfc822",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+        )
 
     # Static files (mounted last so /api/* is not shadowed)
     static_dir = Path(__file__).parent / "static"

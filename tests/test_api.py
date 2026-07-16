@@ -10,7 +10,7 @@ except Exception:  # pragma: no cover
 
 from trae_dashboard.api import create_app
 from trae_dashboard.storage import Storage
-from trae_dashboard.config import Config, Account
+from trae_dashboard.config import Config, Account, EmailConfig
 
 
 def test_api_accounts_summary(tmp_data_dir):
@@ -617,3 +617,184 @@ def test_api_delete_account_lowercases_path(tmp_data_dir):
         r = client.delete("/api/accounts/A%40X.COM")
     assert r.status_code == 200
     assert s.list_accounts() == []
+
+
+# ---------------------------------------------------------------------------
+# Email settings write-back endpoints (Task 5)
+# ---------------------------------------------------------------------------
+
+
+def test_api_report_config_includes_smtp_password_set(tmp_data_dir, monkeypatch):
+    """GET /api/report/config returns smtp_password_set, never the password itself."""
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    cfg = Config(
+        openapi_base="x", auth_endpoint="/auth",
+        app_id="i", app_secret="s", accounts=[],
+        email=EmailConfig(
+            enabled=True, smtp_host="smtp.x.com", smtp_port=465,
+            smtp_user="u@x.com", from_addr="u@x.com",
+            recipients=["r@x.com"], smtp_password_env="SMTP_PASSWORD_TEST_X",
+        ),
+    )
+    monkeypatch.setenv("SMTP_PASSWORD_TEST_X", "secret-pw")
+    app = create_app(cfg=cfg, storage=s, config_path=tmp_data_dir / "config.yaml")
+    with TestClient(app) as client:
+        r = client.get("/api/report/config")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["smtp_password_set"] is True
+        assert "secret-pw" not in r.text
+
+
+def test_api_put_recipients_round_trip(tmp_data_dir):
+    """PUT /api/report/recipients persists + in-memory update, rejects invalid."""
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text(
+        "openapi_base: x\nauth_endpoint: y\nemail:\n  enabled: false\n  recipients: [old@x.com]\n",
+        encoding="utf-8",
+    )
+    cfg = Config(
+        openapi_base="x", auth_endpoint="/auth",
+        app_id="i", app_secret="s", accounts=[],
+    )
+    cfg.email.enabled = False
+    cfg.email.recipients = ["old@x.com"]
+    app = create_app(cfg=cfg, storage=s, config_path=cfg_file)
+    with TestClient(app) as client:
+        r = client.put(
+            "/api/report/recipients",
+            json={"recipients": ["NEW@X.com", "  b@x.com  ", "bad", "b@x.com"]},
+        )
+        assert r.status_code == 400  # "bad" fails validation
+        r = client.put(
+            "/api/report/recipients",
+            json={"recipients": ["NEW@X.com", "  b@x.com  ", "b@x.com"]},
+        )
+        assert r.status_code == 200, r.text
+        body = r.json()
+        # Lowercased, trimmed, deduped, order preserved
+        assert body["recipients"] == ["new@x.com", "b@x.com"]
+        # In-memory updated
+        r2 = client.get("/api/report/config")
+        assert r2.json()["recipients"] == ["new@x.com", "b@x.com"]
+        # On disk
+        disk = cfg_file.read_text(encoding="utf-8")
+        assert "new@x.com" in disk
+        assert "b@x.com" in disk
+        assert "old@x.com" not in disk
+
+
+def test_api_put_smtp_persists_and_preserves_recipients(tmp_data_dir):
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text(
+        "openapi_base: x\nauth_endpoint: y\nemail:\n  enabled: false\n  recipients: [keep@x.com]\n  smtp_password_env: SMTP_PASSWORD\n",
+        encoding="utf-8",
+    )
+    cfg = Config(
+        openapi_base="x", auth_endpoint="/auth",
+        app_id="i", app_secret="s", accounts=[],
+    )
+    app = create_app(cfg=cfg, storage=s, config_path=cfg_file)
+    with TestClient(app) as client:
+        r = client.put("/api/report/smtp", json={
+            "smtp_host": "smtp.new.com", "smtp_port": 587,
+            "smtp_user": "u@new.com", "from_addr": "u@new.com",
+            "send_time": "08:30",
+        })
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body["smtp_host"] == "smtp.new.com"
+        # Recipients preserved
+        assert body["recipients"] == ["keep@x.com"]
+        # On disk
+        disk = cfg_file.read_text(encoding="utf-8")
+        assert "smtp_host: smtp.new.com" in disk
+        assert "smtp_port: 587" in disk
+        assert "keep@x.com" in disk
+        assert "smtp_password_env: SMTP_PASSWORD" in disk
+
+
+def test_api_put_smtp_rejects_invalid(tmp_data_dir):
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text("openapi_base: x\nauth_endpoint: y\n", encoding="utf-8")
+    cfg = Config(openapi_base="x", auth_endpoint="/auth", app_id="i", app_secret="s", accounts=[])
+    app = create_app(cfg=cfg, storage=s, config_path=cfg_file)
+    with TestClient(app) as client:
+        r = client.put("/api/report/smtp", json={
+            "smtp_host": "", "smtp_port": 465, "smtp_user": "u@x.com",
+            "from_addr": "u@x.com", "send_time": "09:00",
+        })
+        assert r.status_code == 400
+
+
+def test_api_post_smtp_password_writes_env(tmp_data_dir):
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    cfg_file = tmp_data_dir / "config.yaml"
+    env_file = tmp_data_dir / ".env"
+    env_file.write_text("TRAE_APP_ID=abc\n", encoding="utf-8")
+    cfg_file.write_text(
+        "openapi_base: x\nauth_endpoint: y\nemail:\n  enabled: false\n  smtp_password_env: SMTP_PASSWORD\n",
+        encoding="utf-8",
+    )
+    cfg = Config(openapi_base="x", auth_endpoint="/auth", app_id="i", app_secret="s", accounts=[])
+    cfg.email.smtp_password_env = "SMTP_PASSWORD"
+    app = create_app(cfg=cfg, storage=s, config_path=cfg_file, env_path=env_file)
+    with TestClient(app) as client:
+        r = client.post("/api/report/smtp/password", json={"password": "new-pw"})
+        assert r.status_code == 200, r.text
+        body = r.json()
+        assert body == {"smtp_password_set": True}
+        assert "new-pw" not in r.text
+        # .env has the value
+        text = env_file.read_text(encoding="utf-8")
+        assert "SMTP_PASSWORD=new-pw" in text
+        # TRAE_APP_ID preserved
+        assert "TRAE_APP_ID=abc" in text
+
+
+def test_api_post_eml_returns_eml_bytes(tmp_data_dir):
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    s.upsert_account("a@x.com", "A")
+    cfg = Config(
+        openapi_base="x", auth_endpoint="/auth",
+        app_id="i", app_secret="s", accounts=[],
+        email=EmailConfig(
+            enabled=False,  # .eml export must NOT require enabled
+            smtp_host="smtp.x.com", smtp_port=465,
+            smtp_user="u@x.com", from_addr="u@x.com",
+            recipients=[],
+        ),
+        included_model_names={"GLM-5.1"},
+    )
+    s.upsert_model_usage(
+        email="a@x.com", cycle_start="2026-06-10", cycle_end="2026-07-06",
+        model_name="GLM-5.1", model_type="Chat", model_source="Trae",
+        input_tokens=100, output_tokens=50,
+    )
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text("openapi_base: x\nauth_endpoint: y\n", encoding="utf-8")
+    app = create_app(cfg=cfg, storage=s, config_path=cfg_file)
+    with TestClient(app) as client:
+        r = client.post(
+            "/api/report/eml",
+            json={"recipients": ["dest@x.com"]},
+        )
+        assert r.status_code == 200, r.text
+        assert r.headers["content-type"].startswith("message/rfc822")
+        cd = r.headers.get("content-disposition", "")
+        assert "attachment" in cd
+        assert ".eml" in cd
+        # Parseable
+        import email, email.policy
+        msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(r.content)
+        assert msg["From"] == "u@x.com"
+        assert msg["To"] == "dest@x.com"

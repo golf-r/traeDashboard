@@ -8,6 +8,9 @@ not as a full HTML snapshot — the layout will evolve.
 
 from __future__ import annotations
 
+import email
+import email.parser
+import email.policy
 from pathlib import Path
 
 import pytest
@@ -338,3 +341,45 @@ class TestRenderHtml:
         assert "650.0M" in html
         # 600M (the buggy value) must NOT appear.
         assert "600.0M" not in html
+
+
+def test_build_eml_has_headers_and_html():
+    from datetime import datetime, timezone
+    from trae_dashboard.config import EmailConfig
+    from trae_dashboard.report import build_eml
+
+    cfg = EmailConfig(
+        enabled=True,
+        smtp_host="smtp.x.com",
+        smtp_port=465,
+        smtp_user="me@x.com",
+        from_addr="me@x.com",
+        recipients=["a@x.com", "b@x.com"],
+    )
+    raw = build_eml(
+        cfg,
+        subject="[Trae Dashboard] 测试",
+        html_body="<p>hello</p>",
+    )
+    msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(raw)
+    assert msg["From"] == "me@x.com"
+    assert msg["To"] == "a@x.com, b@x.com"
+    assert msg["Subject"] == "[Trae Dashboard] 测试"
+    # HTML alternative present
+    parts = list(msg.walk())
+    html_part = next(p for p in parts if p.get_content_type() == "text/html")
+    assert b"<p>hello</p>" in html_part.get_payload(decode=True)
+
+
+def test_build_eml_empty_recipients_leaves_to_blank():
+    from trae_dashboard.config import EmailConfig
+    from trae_dashboard.report import build_eml
+
+    cfg = EmailConfig(
+        enabled=True, smtp_host="h", smtp_port=465, smtp_user="u@x.com",
+        from_addr="u@x.com", recipients=[],
+    )
+    raw = build_eml(cfg, subject="s", html_body="<p>x</p>")
+    msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(raw)
+    # No To header (or empty), must not raise.
+    assert msg.get("To", "") == ""

@@ -24,6 +24,7 @@ import smtplib
 import ssl
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from email import policy as _email_policy
 from email.message import EmailMessage
 from email.utils import formatdate
 
@@ -267,13 +268,7 @@ def send_email(
             "Set it in .env or export it before running."
         )
 
-    msg = EmailMessage()
-    msg["Subject"] = subject
-    msg["From"] = email_cfg.from_addr
-    msg["To"] = ", ".join(email_cfg.recipients)
-    msg["Date"] = formatdate(localtime=True)
-    msg.set_content("本邮件为 HTML 格式，请使用支持 HTML 的客户端查看。")
-    msg.add_alternative(html_body, subtype="html")
+    msg = _build_message(email_cfg, subject, html_body)
 
     log.info(
         "sending email via %s:%d from %s to %s",
@@ -288,6 +283,34 @@ def send_email(
     ) as server:
         server.login(email_cfg.smtp_user, password)
         server.send_message(msg)
+
+
+def _build_message(
+    email_cfg: EmailConfig,
+    subject: str,
+    html_body: str,
+) -> EmailMessage:
+    """Construct the EmailMessage for both send and .eml export."""
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = email_cfg.from_addr
+    if email_cfg.recipients:
+        msg["To"] = ", ".join(email_cfg.recipients)
+    msg["Date"] = formatdate(localtime=True)
+    msg.set_content("本邮件为 HTML 格式,请使用支持 HTML 的客户端查看。")
+    msg.add_alternative(html_body, subtype="html")
+    return msg
+
+
+def build_eml(
+    email_cfg: EmailConfig,
+    subject: str,
+    html_body: str,
+) -> bytes:
+    """Serialize the report as an .eml byte string (RFC 822)."""
+    return _build_message(email_cfg, subject, html_body).as_bytes(
+        policy=_email_policy.SMTPUTF8,
+    )
 
 
 def run_report(

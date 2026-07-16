@@ -175,6 +175,32 @@ def create_app(
     def health():
         return {"ok": True}
 
+    @app.get("/api/version")
+    def version():
+        """Server build info — used by the UI / user to confirm they are
+        talking to the right build. Returned fields:
+          - commit: short git SHA of the running code (12 chars).
+          - has_eml_endpoint: True iff the server is recent enough to
+            expose POST /api/report/eml. Lets users bisect "stale server"
+            from "browser cache" by hitting this URL and checking.
+          - eml_endpoint_methods: methods supported on /api/report/eml.
+        """
+        import subprocess
+        try:
+            commit = subprocess.check_output(
+                ["git", "rev-parse", "--short=12", "HEAD"],
+                cwd=str(Path(__file__).resolve().parent.parent.parent),
+                stderr=subprocess.DEVNULL,
+            ).decode().strip()
+        except Exception:
+            commit = "unknown"
+        return {
+            "commit": commit,
+            "has_eml_endpoint": True,
+            "eml_endpoint_path": "/api/report/eml",
+            "eml_endpoint_methods": ["POST", "OPTIONS"],
+        }
+
     @app.get("/favicon.ico", include_in_schema=False)
     def favicon():
         return Response(content=_FAVICON_PNG, media_type="image/png")
@@ -590,6 +616,20 @@ def create_app(
                 status_code=500, detail=f"save_env_var failed: {e}"
             ) from e
         return {"smtp_password_set": True}
+
+    @app.options("/api/report/eml", include_in_schema=False)
+    def eml_options():
+        """CORS preflight — explicit handler so a stale 405 isn't returned
+        if a browser sends OPTIONS (which some do even on same-origin POST
+        with Content-Type: application/json in restrictive proxy setups)."""
+        return Response(
+            status_code=204,
+            headers={
+                "Allow": "POST, OPTIONS",
+                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Access-Control-Allow-Headers": "Content-Type",
+            },
+        )
 
     @app.post("/api/report/eml")
     def post_eml(body: ReportIn | None = None):

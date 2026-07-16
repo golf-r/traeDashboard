@@ -17,9 +17,10 @@ from typing import Iterable
 
 import yaml
 
+from .validation import is_valid_email, normalize_email
+
 HEADER_COMMENT = "# 本文件的 email.* 由 Trae Dashboard 管理,手动编辑可能被覆盖"
 _EMAIL_KEY = "email"
-_VALID_EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 _TIME_RE = re.compile(r"^\d{2}:\d{2}$")
 
 
@@ -92,13 +93,20 @@ def _dump_yaml(data: dict) -> str:
 
 
 def save_recipients(config_path: Path, recipients: Iterable[str]) -> None:
-    """Update ``email.recipients`` while preserving other email fields."""
+    """Update ``email.recipients`` while preserving other email fields.
+
+    Empty list is allowed only when ``email.enabled`` is False (or absent).
+    If the file currently has ``enabled: true`` and a non-empty recipients
+    list, removing all of them would write a config that ``load_config``
+    refuses to load — the service would fail to restart. Refuse the write
+    in that case so the caller gets an actionable error.
+    """
     cleaned: list[str] = []
     for recipient in recipients:
-        addr = (recipient or "").strip().lower()
+        addr = normalize_email(recipient)
         if not addr:
             continue
-        if not _VALID_EMAIL.match(addr):
+        if not is_valid_email(addr):
             raise ValueError(f"invalid recipient email: {recipient!r}")
         cleaned.append(addr)
 
@@ -112,6 +120,14 @@ def save_recipients(config_path: Path, recipients: Iterable[str]) -> None:
         data[_EMAIL_KEY] = email
     elif not isinstance(email, dict):
         raise RuntimeError("email config must be a YAML mapping")
+
+    if not deduped and bool(email.get("enabled")):
+        raise ValueError(
+            "refusing to clear recipients while email.enabled is true; "
+            "the resulting config cannot be loaded. Disable email first "
+            "or keep at least one recipient."
+        )
+
     email["recipients"] = deduped
     _atomic_write(config_path, _ensure_header(_dump_yaml(data)))
 
@@ -134,9 +150,9 @@ def save_email_config(
         or not (1 <= smtp_port <= 65535)
     ):
         raise ValueError(f"smtp_port must be 1..65535, got {smtp_port!r}")
-    if not _VALID_EMAIL.match((smtp_user or "").strip()):
+    if not is_valid_email(smtp_user):
         raise ValueError(f"invalid smtp_user: {smtp_user!r}")
-    if not _VALID_EMAIL.match((from_addr or "").strip()):
+    if not is_valid_email(from_addr):
         raise ValueError(f"invalid from_addr: {from_addr!r}")
     if not _TIME_RE.match(send_time or ""):
         raise ValueError(f"send_time must match HH:MM, got {send_time!r}")

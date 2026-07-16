@@ -181,3 +181,132 @@ def test_save_env_var_quotes_value_with_special_chars(tmp_path: Path):
     from dotenv import dotenv_values
     parsed = dotenv_values(p)
     assert parsed["SMTP_PASSWORD"] == "abc def=ghi"
+
+
+# ---------- audit gap #1: empty list coverage ----------
+
+
+def test_save_recipients_empty_list_when_disabled_is_allowed(tmp_path: Path):
+    """Empty recipients list is writable when email.enabled is False."""
+    p = tmp_path / "config.yaml"
+    p.write_text(
+        "openapi_base: x\nauth_endpoint: y\nemail:\n  enabled: false\n  recipients:\n    - keep@x.com\n",
+        encoding="utf-8",
+    )
+    save_recipients(p, [])
+    text = p.read_text(encoding="utf-8")
+    assert "recipients: []" in text
+    assert "keep@x.com" not in text
+
+
+def test_save_recipients_empty_list_when_enabled_rejected(tmp_path: Path):
+    """Removing all recipients while enabled=True would brick load_config.
+
+    save_recipients must refuse the write so the caller sees an error
+    instead of writing a config that fails to load on next start.
+    """
+    p = tmp_path / "config.yaml"
+    p.write_text(CONFIG_WITH_EMAIL, encoding="utf-8")
+    with pytest.raises(ValueError, match="refusing to clear recipients"):
+        save_recipients(p, [])
+    # File untouched
+    text = p.read_text(encoding="utf-8")
+    assert "old@x.com" in text
+
+
+# ---------- audit gap #2: enabled preservation in save_recipients ----------
+
+
+def test_save_recipients_preserves_enabled_flag(tmp_path: Path):
+    p = tmp_path / "config.yaml"
+    p.write_text(CONFIG_WITH_EMAIL, encoding="utf-8")
+    save_recipients(p, ["new@x.com"])
+    text = p.read_text(encoding="utf-8")
+    assert "enabled: true" in text
+
+
+# ---------- audit gap #3: env-name validation ----------
+
+
+def test_save_env_var_rejects_invalid_key_names(tmp_path: Path):
+    p = tmp_path / ".env"
+    bad = ["", "1FOO", "FOO=BAR", "FOO BAR", "FOO-BAR", "FOO.BAR"]
+    for key in bad:
+        with pytest.raises(ValueError, match="invalid env var name"):
+            save_env_var(p, key, "v")
+
+
+# ---------- audit gap #4: malformed-YAML contract ----------
+
+
+def test_save_writers_reject_unparseable_yaml_without_writing(tmp_path: Path):
+    """Malformed YAML must raise RuntimeError and not corrupt the file."""
+    from trae_dashboard.config_writer import _load_yaml
+
+    p = tmp_path / "config.yaml"
+    p.write_text("email: { broken: [unclosed\n", encoding="utf-8")
+    with pytest.raises(RuntimeError, match="failed to parse YAML"):
+        _load_yaml(p)
+    # Save writers propagate via _load_yaml — verify save_recipients also rejects.
+    with pytest.raises(RuntimeError):
+        save_recipients(p, ["x@x.com"])
+    # File untouched
+    assert p.read_text(encoding="utf-8") == "email: { broken: [unclosed\n"
+
+
+def test_load_yaml_rejects_non_mapping_root(tmp_path: Path):
+    """A YAML root that isn't a mapping ([] / false / 0) must not silently
+    become {}, which would cause the next write to overwrite the file.
+    `null` is treated as empty (returns {}) since it's YAML's "absent" sentinel.
+    """
+    from trae_dashboard.config_writer import _load_yaml
+
+    for bad_root in ("[]\n", "false\n", "0\n"):
+        p = tmp_path / "config.yaml"
+        p.write_text(bad_root, encoding="utf-8")
+        with pytest.raises(RuntimeError, match="must contain a mapping"):
+            _load_yaml(p)
+
+
+# ---------- audit gap #5: trailing comment preservation asserted ----------
+
+
+def test_save_env_var_preserves_trailing_comment(tmp_path: Path):
+    p = tmp_path / ".env"
+    p.write_text(
+        "TRAE_APP_ID=abc\nSMTP_PASSWORD=oldpw\n# trailing comment\n",
+        encoding="utf-8",
+    )
+    save_env_var(p, "SMTP_PASSWORD", "newpw")
+    text = p.read_text(encoding="utf-8")
+    assert "# trailing comment" in text
+
+
+# ---------- audit gap #6: case + whitespace normalization ----------
+
+
+def test_save_recipients_normalizes_case_and_whitespace(tmp_path: Path):
+    p = tmp_path / "config.yaml"
+    p.write_text("openapi_base: x\nauth_endpoint: y\n", encoding="utf-8")
+    save_recipients(p, ["  USER@X.COM  ", "Foo@Bar.com", "USER@x.com"])
+    text = p.read_text(encoding="utf-8")
+    # All three collapse to the same canonical form, deduped.
+    assert text.count("user@x.com") == 1
+    assert text.count("foo@bar.com") == 1
+    assert "USER@X.COM" not in text
+    assert "Foo@Bar.com" not in text
+
+
+# ---------- bool port rejection (covered by test_save_email_config_rejects_invalid_input
+# above for out-of-range, but bool sneaks through isinstance(int). Pin it explicitly.) ----------
+
+
+def test_save_email_config_rejects_bool_port(tmp_path: Path):
+    """bool subclasses int — must be rejected even though 1 <= True <= 65535."""
+    p = tmp_path / "config.yaml"
+    p.write_text(CONFIG_WITH_EMAIL, encoding="utf-8")
+    with pytest.raises(ValueError, match="smtp_port"):
+        save_email_config(
+            p, smtp_host="h", smtp_port=True,
+            smtp_user="u@x.com", from_addr="u@x.com", send_time="09:00",
+        )

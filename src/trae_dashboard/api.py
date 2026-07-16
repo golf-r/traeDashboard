@@ -34,11 +34,11 @@ from .scheduler import make_collector
 from .storage import Storage
 
 
-# Permissive email regex — local-part + "@" + domain. We do not aim for
-# RFC 5322 completeness here; the upstream Trae API is the real validator
-# when the next fetch hits it. This is just a sanity check so obvious
-# typos (missing @, whitespace, etc.) are caught at the UI.
-_EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+# Email validation lives in trae_dashboard.validation so the API layer
+# and the config writer share one regex/normalizer. Otherwise the writer
+# could reject an address the API accepted (or vice versa) and produce
+# surprising 400/422 errors after a successful save.
+from .validation import VALID_EMAIL as _EMAIL_RE, is_valid_email, normalize_email  # noqa: E402,F401
 
 
 # 1x1 transparent PNG, base64-decoded. Returned for /favicon.ico so the

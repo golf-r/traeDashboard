@@ -198,7 +198,7 @@ def create_app(
             "commit": commit,
             "has_eml_endpoint": True,
             "eml_endpoint_path": "/api/report/eml",
-            "eml_endpoint_methods": ["POST", "OPTIONS"],
+            "eml_endpoint_methods": ["GET", "POST", "OPTIONS"],
         }
 
     @app.get("/favicon.ico", include_in_schema=False)
@@ -625,26 +625,87 @@ def create_app(
         return Response(
             status_code=204,
             headers={
-                "Allow": "POST, OPTIONS",
-                "Access-Control-Allow-Methods": "POST, OPTIONS",
+                "Allow": "GET, POST, OPTIONS",
+                "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
                 "Access-Control-Allow-Headers": "Content-Type",
             },
         )
+
+    def _build_eml_response(override_recipients):
+        """Shared render path used by both GET and POST /api/report/eml."""
+        from .report import build_eml, run_report
+
+        # Build a temporary EmailConfig with the override (empty allowed).
+        from dataclasses import replace as _dc_replace
+        email_cfg = cfg.email
+        if override_recipients is not None:
+            email_cfg = _dc_replace(
+                email_cfg, recipients=list(override_recipients)
+            )
+        try:
+            summary = run_report(
+                storage,
+                cfg,
+                recipients_override=override_recipients,
+                send=False,  # NEVER send — export-only.
+            )
+        except Exception as e:
+            raise HTTPException(
+                status_code=500, detail=f"render failed: {e}"
+            ) from e
+        raw = build_eml(email_cfg, summary["subject"], summary["html"])
+        filename = (
+            f'trae-report-{datetime.now(timezone.utc).strftime("%Y-%m-%d")}.eml'
+        )
+        return Response(
+            content=raw,
+            media_type="message/rfc822",
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "Access-Control-Allow-Origin": "*",
+            },
+        )
+
+    @app.get("/api/report/eml")
+    def get_eml(recipients: str | None = None):
+        """GET fallback for the .eml download.
+
+        Same as POST but takes recipients as a comma-separated query string.
+        Lets users download a report by pasting a URL into the browser
+        address bar — bypasses any frontend JS / cache / proxy issues.
+
+        Examples:
+          /api/report/eml                              (uses configured recipients)
+          /api/report/eml?recipients=a@x.com,b@y.com  (override)
+        """
+        override = None
+        if recipients:
+            cleaned: list[str] = []
+            for r in recipients.split(","):
+                addr = r.strip().lower()
+                if not addr:
+                    continue
+                if not _EMAIL_RE.match(addr):
+                    raise HTTPException(
+                        status_code=400,
+                        detail=f"invalid recipient email: {r!r}",
+                    )
+                cleaned.append(addr)
+            override = cleaned
+        return _build_eml_response(override)
 
     @app.post("/api/report/eml")
     def post_eml(body: ReportIn | None = None):
         """Export the report as an RFC-822 ``.eml`` file (no SMTP send).
 
-        Unlike ``POST /api/report`` this endpoint:
-          - never sends email (`send=False` regardless of payload),
-          - works even when ``email.enabled`` is false (pure export),
-          - accepts an empty recipients list (the user's mail client
-            fills in the To: header on display),
-          - returns ``message/rfc822`` with a Content-Disposition so
-            browsers download it as ``trae-report-YYYY-MM-DD.eml``.
-        """
-        from .report import build_eml, run_report
+        Body (all optional):
+          - recipients: override the configured recipients for THIS export
+                        only. Empty list allowed (user's mail client fills To).
 
+        Returns ``message/rfc822`` with a Content-Disposition so browsers
+        download it as ``trae-report-YYYY-MM-DD.eml``. Also accepts GET
+        (with ``?recipients=a@x.com,b@y.com``) for direct browser downloads.
+        """
         payload = body or ReportIn()
         recipients_override = payload.recipients
         if recipients_override is not None:
@@ -659,28 +720,7 @@ def create_app(
                     )
                 cleaned.append(addr)
             recipients_override = cleaned
-        # Build a temporary EmailConfig with the override (empty allowed)
-        from dataclasses import replace as _dc_replace
-        email_cfg = cfg.email
-        if recipients_override is not None:
-            email_cfg = _dc_replace(email_cfg, recipients=list(recipients_override))
-        # Render the report with the overridden recipients so subject/to match.
-        try:
-            summary = run_report(
-                storage,
-                cfg,
-                recipients_override=recipients_override,
-                send=False,  # NEVER send
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"render failed: {e}") from e
-        raw = build_eml(email_cfg, summary["subject"], summary["html"])
-        filename = f'trae-report-{datetime.now(timezone.utc).strftime("%Y-%m-%d")}.eml'
-        return Response(
-            content=raw,
-            media_type="message/rfc822",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
+        return _build_eml_response(recipients_override)
 
     # Static files (mounted last so /api/* is not shadowed)
     static_dir = Path(__file__).parent / "static"

@@ -545,6 +545,7 @@
           <span class="report-modal__footer-hint" id="report-footer-hint">改动仅对本次发送生效，不会写回 config.yaml</span>
           <div class="report-modal__footer-actions">
             <button class="btn btn--ghost" type="button" id="report-modal-eml">下载 .eml</button>
+            <a class="btn btn--ghost" id="report-modal-eml-link" href="/api/report/eml" download="trae-report.eml" hidden>备用链接</a>
             <button class="btn btn--ghost" type="button" id="report-modal-cancel">取消</button>
             <button class="btn btn--primary" type="button" id="report-modal-send" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;">
@@ -2528,9 +2529,24 @@
 
     // ----- Download .eml -----
     var reportModalEmlBtn = document.getElementById("report-modal-eml");
+    var reportModalEmlLink = document.getElementById("report-modal-eml-link");
+    function updateEmlFallbackLink() {
+      if (!reportModalEmlLink) return;
+      var selected = Array.from(reportState.selected || []);
+      if (selected.length) {
+        // GET endpoint accepts comma-separated recipients in the query
+        // string — works without any JS / fetch / proxy in the way.
+        reportModalEmlLink.href =
+          "/api/report/eml?recipients=" +
+          encodeURIComponent(selected.join(","));
+      } else {
+        reportModalEmlLink.href = "/api/report/eml";
+      }
+    }
     if (reportModalEmlBtn) {
       reportModalEmlBtn.addEventListener("click", async function () {
         var selected = Array.from(reportState.selected);
+        updateEmlFallbackLink();
         if (!selected.length) {
           setReportStatus("请至少选择一位收件人", "error");
           return;
@@ -2550,7 +2566,14 @@
           setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
           App.showToast(".eml 已下载", { variant: "success" });
         } catch (e) {
-          setReportStatus("下载失败: " + (e.message || e), "error");
+          // POST failed (e.g. 405, 502, network) — show the fallback link
+          // so the user can still download via a direct browser GET,
+          // bypassing any JS / fetch / proxy issue.
+          setReportStatus(
+            "下载失败 (" + (e.message || e) + ") — 请试备用链接",
+            "error"
+          );
+          if (reportModalEmlLink) reportModalEmlLink.hidden = false;
         }
       });
     }

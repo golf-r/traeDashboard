@@ -798,3 +798,111 @@ def test_api_post_eml_returns_eml_bytes(tmp_data_dir):
         msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(r.content)
         assert msg["From"] == "u@x.com"
         assert msg["To"] == "dest@x.com"
+
+
+def test_api_get_eml_returns_eml_bytes(tmp_data_dir):
+    """GET /api/report/eml is the user-recoverable fallback when the JS-driven
+    POST is blocked (stale server, browser cache, proxy stripping POST, etc).
+    The user can paste the URL into the address bar and the browser downloads
+    the .eml directly — no JS, no fetch, no preflight required.
+    """
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    s.upsert_account("a@x.com", "A")
+    cfg = Config(
+        openapi_base="x", auth_endpoint="/auth",
+        app_id="i", app_secret="s", accounts=[],
+        email=EmailConfig(
+            enabled=False,
+            smtp_host="smtp.x.com", smtp_port=465,
+            smtp_user="u@x.com", from_addr="u@x.com",
+            recipients=[],
+        ),
+        included_model_names={"GLM-5.1"},
+    )
+    s.upsert_model_usage(
+        email="a@x.com", cycle_start="2026-06-10", cycle_end="2026-07-06",
+        model_name="GLM-5.1", model_type="Chat", model_source="Trae",
+        input_tokens=100, output_tokens=50,
+    )
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text("openapi_base: x\nauth_endpoint: y\n", encoding="utf-8")
+    app = create_app(cfg=cfg, storage=s, config_path=cfg_file)
+    with TestClient(app) as client:
+        r = client.get("/api/report/eml?recipients=alice@x.com,bob@y.com")
+        assert r.status_code == 200, r.text
+        assert r.headers["content-type"].startswith("message/rfc822")
+        cd = r.headers.get("content-disposition", "")
+        assert "attachment" in cd and ".eml" in cd
+        import email, email.policy
+        msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(r.content)
+        assert msg["From"] == "u@x.com"
+        assert msg["To"] == "alice@x.com, bob@y.com"
+
+
+def test_api_get_eml_with_no_recipients_uses_configured(tmp_data_dir):
+    """GET /api/report/eml without a recipients query param falls back to the
+    recipients configured in config.yaml (or empty if none configured)."""
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    s.upsert_account("a@x.com", "A")
+    cfg = Config(
+        openapi_base="x", auth_endpoint="/auth",
+        app_id="i", app_secret="s", accounts=[],
+        email=EmailConfig(
+            enabled=False, smtp_host="h", smtp_port=465,
+            smtp_user="u@x.com", from_addr="u@x.com",
+            recipients=["configured@x.com"],
+        ),
+        included_model_names={"GLM-5.1"},
+    )
+    s.upsert_model_usage(
+        email="a@x.com", cycle_start="2026-06-10", cycle_end="2026-07-06",
+        model_name="GLM-5.1", model_type="Chat", model_source="Trae",
+        input_tokens=10, output_tokens=20,
+    )
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text("openapi_base: x\nauth_endpoint: y\n", encoding="utf-8")
+    app = create_app(cfg=cfg, storage=s, config_path=cfg_file)
+    with TestClient(app) as client:
+        r = client.get("/api/report/eml")
+        assert r.status_code == 200
+        import email, email.policy
+        msg = email.parser.BytesParser(policy=email.policy.default).parsebytes(r.content)
+        assert msg["To"] == "configured@x.com"
+
+
+def test_api_options_eml_advertises_allowed_methods(tmp_data_dir):
+    """CORS preflight must list GET + POST + OPTIONS so browsers / proxies
+    don't return 405 on the OPTIONS pre-check."""
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    cfg = Config(openapi_base="x", auth_endpoint="/auth",
+                 app_id="i", app_secret="s", accounts=[])
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text("openapi_base: x\nauth_endpoint: y\n", encoding="utf-8")
+    app = create_app(cfg=cfg, storage=s, config_path=cfg_file)
+    with TestClient(app) as client:
+        r = client.options("/api/report/eml")
+        assert r.status_code == 204
+        allow = r.headers.get("allow", "")
+        assert "GET" in allow and "POST" in allow
+
+
+def test_api_version_reports_commit(tmp_data_dir):
+    """/api/version lets users confirm which commit they're hitting."""
+    db = tmp_data_dir / "test.db"
+    s = Storage(db); s.init()
+    cfg = Config(openapi_base="x", auth_endpoint="/auth",
+                 app_id="i", app_secret="s", accounts=[])
+    app = create_app(cfg=cfg, storage=s)
+    with TestClient(app) as client:
+        r = client.get("/api/version")
+        assert r.status_code == 200
+        body = r.json()
+        assert body["has_eml_endpoint"] is True
+        assert body["eml_endpoint_path"] == "/api/report/eml"
+        assert "POST" in body["eml_endpoint_methods"]
+        assert "GET" in body["eml_endpoint_methods"]
+        # commit may be "unknown" if not in a git checkout — that's OK
+        assert isinstance(body["commit"], str)

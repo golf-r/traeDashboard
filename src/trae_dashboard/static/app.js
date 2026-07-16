@@ -343,6 +343,53 @@
     }
   }
 
+  /**
+   * PUT JSON to an API endpoint. Throws Error(friendly msg) on HTTP error.
+   * The error message is the response body's `detail` field when present.
+   */
+  async function apiPut(url, body) {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+    } catch (err) {
+      throw new Error(`网络错误: ${err.message || err}`);
+    }
+    if (!response.ok) {
+      throw await _toHttpError(response);
+    }
+    try {
+      return await response.json();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  /**
+   * POST JSON to an API endpoint and return the raw `Blob` body.
+   * Used by `.eml` download (Content-Type: message/rfc822).
+   * Throws Error(friendly msg) on HTTP error.
+   */
+  async function apiPostBlob(url, body) {
+    let response;
+    try {
+      response = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify(body || {}),
+      });
+    } catch (err) {
+      throw new Error(`网络错误: ${err.message || err}`);
+    }
+    if (!response.ok) {
+      throw await _toHttpError(response);
+    }
+    return response.blob();
+  }
+
   async function _toHttpError(response) {
     let msg = `HTTP ${response.status}`;
     try {
@@ -654,6 +701,8 @@
     // api
     apiGet,
     apiPost,
+    apiPut,
+    apiPostBlob,
     apiDelete,
     fetchHealth,
     fetchStatus,

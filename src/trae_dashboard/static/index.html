@@ -414,32 +414,92 @@
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
       </div>
+
+      <div class="tabs" role="tablist" aria-label="邮件报告选项卡">
+        <button class="tab is-active" type="button" role="tab" id="tab-send" aria-controls="tab-panel-send" aria-selected="true">发送</button>
+        <button class="tab" type="button" role="tab" id="tab-settings" aria-controls="tab-panel-settings" aria-selected="false">邮件设置</button>
+      </div>
+
       <div class="modal__body">
         <div class="report-modal__status-banner" id="report-modal-status" hidden></div>
 
-        <div class="report-modal__recipients">
-          <div class="report-modal__recipients-head">
-            <h4>收件人</h4>
-            <span class="report-modal__recipients-meta" id="report-recipients-meta">— 位收件人 · 已选 — 位</span>
+        <!-- Tab: Send -->
+        <div class="tab-panel" id="tab-panel-send" role="tabpanel" aria-labelledby="tab-send">
+          <div class="report-modal__recipients">
+            <div class="report-modal__recipients-head">
+              <h4>收件人</h4>
+              <span class="report-modal__recipients-meta" id="report-recipients-meta">— 位收件人 · 已选 — 位</span>
+            </div>
+            <div class="report-modal__recipients-list" id="report-recipients-list">
+              <span class="report-modal__preview-loading">加载中…</span>
+            </div>
           </div>
-          <div class="report-modal__recipients-list" id="report-recipients-list">
-            <span class="report-modal__preview-loading">加载中…</span>
+
+          <div class="report-modal__preview-wrap">
+            <div class="report-modal__preview-head">
+              <span>报告预览（与实际邮件内容一致）</span>
+              <span>主题: <code id="report-preview-subject">—</code></span>
+            </div>
+            <div class="report-modal__preview-loading" id="report-preview-loading">正在生成预览…</div>
+            <div class="report-modal__preview-error" id="report-preview-error" hidden></div>
+            <iframe class="report-modal__preview-iframe" id="report-preview-iframe" hidden title="报告预览"></iframe>
           </div>
         </div>
 
-        <div class="report-modal__preview-wrap">
-          <div class="report-modal__preview-head">
-            <span>报告预览（与实际邮件内容一致）</span>
-            <span>主题: <code id="report-preview-subject">—</code></span>
-          </div>
-          <div class="report-modal__preview-loading" id="report-preview-loading">正在生成预览…</div>
-          <div class="report-modal__preview-error" id="report-preview-error" hidden></div>
-          <iframe class="report-modal__preview-iframe" id="report-preview-iframe" hidden title="报告预览"></iframe>
+        <!-- Tab: Mail Settings -->
+        <div class="tab-panel" id="tab-panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
+          <!-- Recipients management -->
+          <section class="settings-section">
+            <h4>收件人管理</h4>
+            <p class="settings-hint">修改后点「保存收件人」才写回 <code>config.yaml</code>。</p>
+            <ul class="settings-recipient-list" id="settings-recipient-list"></ul>
+            <div class="settings-recipient-add">
+              <input type="email" id="settings-recipient-input" placeholder="user@company.com" autocomplete="off" />
+              <button class="btn btn--ghost" type="button" id="settings-recipient-add-btn">添加</button>
+            </div>
+            <button class="btn btn--primary" type="button" id="settings-recipient-save">保存收件人</button>
+          </section>
+
+          <!-- SMTP config -->
+          <section class="settings-section">
+            <h4>SMTP 服务器</h4>
+            <div class="settings-grid">
+              <label>主机 <input type="text" id="settings-smtp-host" autocomplete="off" /></label>
+              <label>端口 <input type="number" id="settings-smtp-port" min="1" max="65535" autocomplete="off" /></label>
+              <label>登录用户 <input type="text" id="settings-smtp-user" autocomplete="off" /></label>
+              <label>发件邮箱 <input type="email" id="settings-smtp-from" autocomplete="off" /></label>
+              <label>每日发送时间 <input type="text" id="settings-smtp-send-time" placeholder="HH:MM" autocomplete="off" /></label>
+            </div>
+            <button class="btn btn--primary" type="button" id="settings-smtp-save">保存 SMTP 设置</button>
+            <div class="settings-enabled-row">
+              邮件报告启用状态:
+              <label class="settings-toggle">
+                <input type="checkbox" id="settings-enabled-toggle" disabled />
+                <span id="settings-enabled-label">—</span>
+              </label>
+              <span class="settings-hint">（只读,关闭需手改 <code>config.yaml</code>）</span>
+            </div>
+          </section>
+
+          <!-- SMTP password -->
+          <section class="settings-section">
+            <h4>SMTP 密码</h4>
+            <p class="settings-hint">状态: <strong id="settings-password-status">—</strong></p>
+            <div class="settings-password-row" id="settings-password-row">
+              <button class="btn btn--ghost" type="button" id="settings-password-edit-btn">修改密码</button>
+              <span class="settings-password-form" hidden>
+                <input type="password" id="settings-password-input" placeholder="新密码" autocomplete="new-password" />
+                <button class="btn btn--primary" type="button" id="settings-password-save-btn">保存</button>
+                <button class="btn btn--ghost" type="button" id="settings-password-cancel-btn">取消</button>
+              </span>
+            </div>
+          </section>
         </div>
 
         <div class="report-modal__footer">
           <span class="report-modal__footer-hint" id="report-footer-hint">改动仅对本次发送生效，不会写回 config.yaml</span>
           <div class="report-modal__footer-actions">
+            <button class="btn btn--ghost" type="button" id="report-modal-eml">下载 .eml</button>
             <button class="btn btn--ghost" type="button" id="report-modal-cancel">取消</button>
             <button class="btn btn--primary" type="button" id="report-modal-send" disabled>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="width:16px;height:16px;">
@@ -2071,6 +2131,9 @@
       reportModalSendBtn.disabled = true;
       reportFooterHint.textContent = "改动仅对本次发送生效，不会写回 config.yaml";
       reportModal.hidden = false;
+      // Reset tab state to send (in case previous open was on settings).
+      activateTab("send");
+      loadMailSettings();
       // Autofocus 到取消按钮(稳定元素,不会因后续 await 失焦)。
       // 放在 await 之前,确保键盘用户立刻有焦点落在 modal 内。
       if (reportModalCloseBtn) {
@@ -2118,6 +2181,10 @@
       reportState.selected = new Set();
       reportState.config = null;
       setReportStatus("");
+      // Reset password form so it doesn't linger into next open.
+      if (settingsPasswordForm) settingsPasswordForm.hidden = true;
+      if (settingsPasswordEditBtn) settingsPasswordEditBtn.hidden = false;
+      if (settingsPasswordInput) settingsPasswordInput.value = "";
       if (lastReportFocus && typeof lastReportFocus.focus === "function") {
         try { lastReportFocus.focus(); } catch (_) {}
       }
@@ -2190,6 +2257,233 @@
           reportModalCancelBtn.disabled = false;
           reportModalCloseBtn.disabled = false;
           updateReportFooterHint();
+        }
+      });
+    }
+
+    // ----- Tab switching -----
+    var tabSend = document.getElementById("tab-send");
+    var tabSettings = document.getElementById("tab-settings");
+    var tabPanelSend = document.getElementById("tab-panel-send");
+    var tabPanelSettings = document.getElementById("tab-panel-settings");
+    function activateTab(name) {
+      var isSend = name === "send";
+      if (tabSend) {
+        tabSend.classList.toggle("is-active", isSend);
+        tabSend.setAttribute("aria-selected", isSend ? "true" : "false");
+      }
+      if (tabSettings) {
+        tabSettings.classList.toggle("is-active", !isSend);
+        tabSettings.setAttribute("aria-selected", isSend ? "false" : "true");
+      }
+      if (tabPanelSend) tabPanelSend.hidden = !isSend;
+      if (tabPanelSettings) tabPanelSettings.hidden = isSend;
+    }
+    if (tabSend) tabSend.addEventListener("click", function () { activateTab("send"); });
+    if (tabSettings) tabSettings.addEventListener("click", function () { activateTab("settings"); });
+
+    // ----- Tab2: Mail Settings -----
+    var settingsRecipientList = document.getElementById("settings-recipient-list");
+    var settingsRecipientInput = document.getElementById("settings-recipient-input");
+    var settingsRecipientAddBtn = document.getElementById("settings-recipient-add-btn");
+    var settingsRecipientSaveBtn = document.getElementById("settings-recipient-save");
+    var settingsSmtpHost = document.getElementById("settings-smtp-host");
+    var settingsSmtpPort = document.getElementById("settings-smtp-port");
+    var settingsSmtpUser = document.getElementById("settings-smtp-user");
+    var settingsSmtpFrom = document.getElementById("settings-smtp-from");
+    var settingsSmtpSendTime = document.getElementById("settings-smtp-send-time");
+    var settingsSmtpSaveBtn = document.getElementById("settings-smtp-save");
+    var settingsEnabledToggle = document.getElementById("settings-enabled-toggle");
+    var settingsEnabledLabel = document.getElementById("settings-enabled-label");
+    var settingsPasswordStatus = document.getElementById("settings-password-status");
+    var settingsPasswordEditBtn = document.getElementById("settings-password-edit-btn");
+    var settingsPasswordRow = document.getElementById("settings-password-row");
+    var settingsPasswordForm = settingsPasswordRow
+      ? settingsPasswordRow.querySelector(".settings-password-form")
+      : null;
+    var settingsPasswordInput = document.getElementById("settings-password-input");
+    var settingsPasswordSaveBtn = document.getElementById("settings-password-save-btn");
+    var settingsPasswordCancelBtn = document.getElementById("settings-password-cancel-btn");
+    var settingsDraft = { recipients: [] };  // local working copy
+
+    function renderSettingsRecipients() {
+      if (!settingsRecipientList) return;
+      settingsRecipientList.innerHTML = "";
+      if (!settingsDraft.recipients.length) {
+        var li = document.createElement("li");
+        li.textContent = "(暂无收件人)";
+        li.style.background = "transparent";
+        li.style.color = "#9ca3af";
+        settingsRecipientList.appendChild(li);
+        return;
+      }
+      settingsDraft.recipients.forEach(function (addr, idx) {
+        var li = document.createElement("li");
+        li.textContent = addr + " ";
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("aria-label", "删除 " + addr);
+        btn.textContent = "×";
+        btn.addEventListener("click", function () {
+          settingsDraft.recipients.splice(idx, 1);
+          renderSettingsRecipients();
+        });
+        li.appendChild(btn);
+        settingsRecipientList.appendChild(li);
+      });
+    }
+    if (settingsRecipientAddBtn) {
+      settingsRecipientAddBtn.addEventListener("click", function () {
+        var v = (settingsRecipientInput.value || "").trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) {
+          App.showToast("邮箱格式不正确", { variant: "error" });
+          return;
+        }
+        if (settingsDraft.recipients.indexOf(v) !== -1) {
+          App.showToast("收件人已存在", { variant: "warn" });
+          return;
+        }
+        settingsDraft.recipients.push(v);
+        settingsRecipientInput.value = "";
+        renderSettingsRecipients();
+      });
+    }
+    if (settingsRecipientSaveBtn) {
+      settingsRecipientSaveBtn.addEventListener("click", async function () {
+        try {
+          var result = await App.apiPut("/api/report/recipients", {
+            recipients: settingsDraft.recipients,
+          });
+          // Update reportState.config so the Send tab chips stay in sync.
+          if (reportState && reportState.config) {
+            reportState.config.recipients = result.recipients;
+          }
+          reportState.selected = new Set(result.recipients);
+          renderReportRecipients();
+          App.showToast(
+            "收件人已保存 (" + result.recipients.length + ")",
+            { variant: "success" }
+          );
+        } catch (e) {
+          App.showToast("保存失败: " + (e.message || e), { variant: "error" });
+        }
+      });
+    }
+    if (settingsSmtpSaveBtn) {
+      settingsSmtpSaveBtn.addEventListener("click", async function () {
+        var body = {
+          smtp_host: settingsSmtpHost.value,
+          smtp_port: parseInt(settingsSmtpPort.value, 10),
+          smtp_user: settingsSmtpUser.value,
+          from_addr: settingsSmtpFrom.value,
+          send_time: settingsSmtpSendTime.value,
+        };
+        try {
+          await App.apiPut("/api/report/smtp", body);
+          App.showToast("SMTP 设置已保存", { variant: "success" });
+          // Refresh reportState.config so the Send tab reflects new values.
+          var cfg = await App.apiGet("/api/report/config");
+          reportState.config = cfg;
+          applySettingsStatus(cfg);
+        } catch (e) {
+          App.showToast("保存失败: " + (e.message || e), { variant: "error" });
+        }
+      });
+    }
+    function applySettingsStatus(cfg) {
+      if (!cfg) return;
+      if (settingsSmtpHost) settingsSmtpHost.value = cfg.smtp_host || "";
+      if (settingsSmtpPort) settingsSmtpPort.value = cfg.smtp_port || 465;
+      if (settingsSmtpUser) settingsSmtpUser.value = cfg.smtp_user || "";
+      if (settingsSmtpFrom) settingsSmtpFrom.value = cfg.from_addr || "";
+      if (settingsSmtpSendTime) settingsSmtpSendTime.value = cfg.send_time || "09:00";
+      settingsDraft.recipients = (cfg.recipients || []).slice();
+      renderSettingsRecipients();
+      if (settingsEnabledToggle) settingsEnabledToggle.checked = !!cfg.enabled;
+      if (settingsEnabledLabel) {
+        settingsEnabledLabel.textContent = cfg.enabled ? "已启用" : "未启用";
+      }
+      // Only allow enabling from UI — `true` → disable so user can't flip off.
+      if (settingsEnabledToggle) settingsEnabledToggle.disabled = !!cfg.enabled;
+      if (settingsPasswordStatus) {
+        settingsPasswordStatus.textContent = cfg.smtp_password_set ? "已设置" : "未设置";
+        settingsPasswordStatus.style.color = cfg.smtp_password_set ? "#16a34a" : "#9ca3af";
+      }
+    }
+    if (settingsPasswordEditBtn) {
+      settingsPasswordEditBtn.addEventListener("click", function () {
+        if (settingsPasswordForm) settingsPasswordForm.hidden = false;
+        settingsPasswordEditBtn.hidden = true;
+        if (settingsPasswordInput) settingsPasswordInput.value = "";
+        setTimeout(function () {
+          if (settingsPasswordInput) settingsPasswordInput.focus();
+        }, 0);
+      });
+    }
+    if (settingsPasswordCancelBtn) {
+      settingsPasswordCancelBtn.addEventListener("click", function () {
+        if (settingsPasswordForm) settingsPasswordForm.hidden = true;
+        settingsPasswordEditBtn.hidden = false;
+        if (settingsPasswordInput) settingsPasswordInput.value = "";
+      });
+    }
+    if (settingsPasswordSaveBtn) {
+      settingsPasswordSaveBtn.addEventListener("click", async function () {
+        var pw = settingsPasswordInput.value || "";
+        if (!pw) {
+          App.showToast("密码不能为空", { variant: "error" });
+          return;
+        }
+        try {
+          await App.apiPost("/api/report/smtp/password", { password: pw });
+          App.showToast("密码已保存", { variant: "success" });
+          // Never persist in DOM — clear before hiding form.
+          settingsPasswordInput.value = "";
+          if (settingsPasswordForm) settingsPasswordForm.hidden = true;
+          settingsPasswordEditBtn.hidden = false;
+          // Refresh status only.
+          var cfg = await App.apiGet("/api/report/config");
+          applySettingsStatus(cfg);
+        } catch (e) {
+          App.showToast("保存失败: " + (e.message || e), { variant: "error" });
+        }
+      });
+    }
+    // Populate on modal open.
+    async function loadMailSettings() {
+      try {
+        var cfg = await App.apiGet("/api/report/config");
+        applySettingsStatus(cfg);
+      } catch (_) {
+        // The Send tab will surface its own load error; settings is secondary.
+      }
+    }
+
+    // ----- Download .eml -----
+    var reportModalEmlBtn = document.getElementById("report-modal-eml");
+    if (reportModalEmlBtn) {
+      reportModalEmlBtn.addEventListener("click", async function () {
+        var selected = Array.from(reportState.selected);
+        if (!selected.length) {
+          setReportStatus("请至少选择一位收件人", "error");
+          return;
+        }
+        try {
+          var blob = await App.apiPostBlob("/api/report/eml", {
+            recipients: selected,
+          });
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url;
+          a.download =
+            "trae-report-" + new Date().toISOString().slice(0, 10) + ".eml";
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+          App.showToast(".eml 已下载", { variant: "success" });
+        } catch (e) {
+          setReportStatus("下载失败: " + (e.message || e), "error");
         }
       });
     }

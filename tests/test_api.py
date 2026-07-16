@@ -145,13 +145,17 @@ def test_api_status_returns_expected_fields(tmp_data_dir):
 
 def test_api_status_reports_recent_snapshot(tmp_data_dir):
     """After saving a snapshot, /api/status reports last_fetched_at + age."""
+    from trae_dashboard.cycle import current_cycle_window
     db = tmp_data_dir / "test.db"
     s = Storage(db)
     s.init()
     s.upsert_account("a@x.com")
     s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
+    s_dt, e_dt = current_cycle_window()
     s.upsert_model_usage(
-        email="a@x.com", cycle_start="2026-06-10", cycle_end="2026-06-29",
+        email="a@x.com",
+        cycle_start=s_dt.date().isoformat(),
+        cycle_end=e_dt.date().isoformat(),
         model_name="M", model_type="Chat", model_source="Trae",
         input_tokens=10, output_tokens=20,
     )

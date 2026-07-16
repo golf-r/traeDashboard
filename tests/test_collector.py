@@ -314,7 +314,7 @@ def _capturing_client(items):
     )
 
 
-def test_collector_uses_cycle_window(tmp_data_dir):
+def test_collector_uses_cycle_window(tmp_data_dir, monkeypatch):
     """Collector calls API with start/end matching the current cycle window."""
     from datetime import datetime, timezone
     from trae_dashboard.storage import Storage
@@ -356,6 +356,14 @@ def test_collector_uses_cycle_window(tmp_data_dir):
     fixed_now = datetime(2026, 6, 29, 12, 0, 0, tzinfo=timezone.utc)
     s_dt, e_dt = current_cycle_window(fixed_now)
     expected_start = int(s_dt.timestamp())
+    # Collector.run_once() always calls current_cycle_window() with no arg,
+    # so monkeypatch the imported reference inside the collector module
+    # to return our pinned window.
+    import trae_dashboard.collector as collector_mod
+    monkeypatch.setattr(
+        collector_mod, "current_cycle_window",
+        lambda *a, **kw: (s_dt, e_dt),
+    )
 
     summary = c.run_once()
     assert summary["snapshots"] == 1

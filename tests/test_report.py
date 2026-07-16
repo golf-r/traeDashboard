@@ -31,12 +31,17 @@ from trae_dashboard.storage import Storage
 
 def _seed_storage(storage: Storage) -> None:
     """Insert a couple of accounts with model usage for the current cycle."""
+    from trae_dashboard.cycle import current_cycle_window
+
+    s_dt, e_dt = current_cycle_window()
+    cycle_start = s_dt.date().isoformat()
+    cycle_end = e_dt.date().isoformat()
     storage.upsert_account("a@x.com", "Alice")
     storage.upsert_account("b@x.com", "Bob")
     storage.upsert_model_usage(
         email="a@x.com",
-        cycle_start="2026-06-10",
-        cycle_end="2026-06-30",
+        cycle_start=cycle_start,
+        cycle_end=cycle_end,
         model_name="GLM-5.1",
         model_type="Chat",
         model_source="Trae",
@@ -45,8 +50,8 @@ def _seed_storage(storage: Storage) -> None:
     )
     storage.upsert_model_usage(
         email="a@x.com",
-        cycle_start="2026-06-10",
-        cycle_end="2026-06-30",
+        cycle_start=cycle_start,
+        cycle_end=cycle_end,
         model_name="Doubao-Seed-Code",
         model_type="Chat",
         model_source="Trae",
@@ -55,8 +60,8 @@ def _seed_storage(storage: Storage) -> None:
     )
     storage.upsert_model_usage(
         email="b@x.com",
-        cycle_start="2026-06-10",
-        cycle_end="2026-06-30",
+        cycle_start=cycle_start,
+        cycle_end=cycle_end,
         model_name="GLM-5-Turbo",
         model_type="Chat",
         model_source="Trae",
@@ -254,14 +259,16 @@ class TestRenderHtml:
 
     def test_contains_subject_and_cycle(self):
         from datetime import datetime, timezone
+        from trae_dashboard.cycle import current_cycle_window
 
         cfg = _make_config()
-        start = datetime(2026, 6, 10, tzinfo=timezone.utc)
-        now = datetime(2026, 7, 6, tzinfo=timezone.utc)
+        s_dt, _ = current_cycle_window()
+        start = s_dt
+        now = datetime.now(timezone.utc)
         html = render_html(self._sample_rows(), cfg, start, now)
-        # Header shows cycle range
-        assert "2026-06-10" in html
-        assert "2026-07-06" in html
+        # Header shows cycle start and today's date
+        assert start.strftime("%Y-%m-%d") in html
+        assert now.strftime("%Y-%m-%d") in html
         # Title
         assert "Trae Dashboard" in html
 

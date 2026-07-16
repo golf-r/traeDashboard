@@ -448,50 +448,95 @@
 
         <!-- Tab: Mail Settings -->
         <div class="tab-panel" id="tab-panel-settings" role="tabpanel" aria-labelledby="tab-settings" hidden>
-          <!-- Recipients management -->
-          <section class="settings-section">
-            <h4>收件人管理</h4>
-            <p class="settings-hint">修改后点「保存收件人」才写回 <code>config.yaml</code>。</p>
-            <ul class="settings-recipient-list" id="settings-recipient-list"></ul>
-            <div class="settings-recipient-add">
-              <input type="email" id="settings-recipient-input" placeholder="user@company.com" autocomplete="off" />
-              <button class="btn btn--ghost" type="button" id="settings-recipient-add-btn">添加</button>
-            </div>
-            <button class="btn btn--primary" type="button" id="settings-recipient-save">保存收件人</button>
-          </section>
-
-          <!-- SMTP config -->
-          <section class="settings-section">
-            <h4>SMTP 服务器</h4>
-            <div class="settings-grid">
-              <label>主机 <input type="text" id="settings-smtp-host" autocomplete="off" /></label>
-              <label>端口 <input type="number" id="settings-smtp-port" min="1" max="65535" autocomplete="off" /></label>
-              <label>登录用户 <input type="text" id="settings-smtp-user" autocomplete="off" /></label>
-              <label>发件邮箱 <input type="email" id="settings-smtp-from" autocomplete="off" /></label>
-              <label>每日发送时间 <input type="text" id="settings-smtp-send-time" placeholder="HH:MM" autocomplete="off" /></label>
-            </div>
-            <button class="btn btn--primary" type="button" id="settings-smtp-save">保存 SMTP 设置</button>
-            <div class="settings-enabled-row">
-              邮件报告启用状态:
-              <label class="settings-toggle">
-                <input type="checkbox" id="settings-enabled-toggle" disabled />
-                <span id="settings-enabled-label">—</span>
-              </label>
-              <span class="settings-hint">（只读,关闭需手改 <code>config.yaml</code>）</span>
+          <!-- Card 1: Recipients management -->
+          <section class="settings-card">
+            <header class="settings-card__head">
+              <h4 class="settings-card__title">收件人</h4>
+              <p class="settings-card__subtitle">报告会发送给以下地址。修改后点保存生效。</p>
+            </header>
+            <div class="settings-card__body">
+              <ul class="settings-recipient-list" id="settings-recipient-list"></ul>
+              <div class="settings-recipient-add">
+                <div class="settings-field settings-field--inline">
+                  <input class="settings-field__input" type="email" id="settings-recipient-input" placeholder="user@company.com" autocomplete="off" />
+                </div>
+                <button class="btn btn--secondary" type="button" id="settings-recipient-add-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  添加
+                </button>
+              </div>
+              <div class="settings-card__actions">
+                <button class="btn btn--primary" type="button" id="settings-recipient-save">保存收件人</button>
+              </div>
             </div>
           </section>
 
-          <!-- SMTP password -->
-          <section class="settings-section">
-            <h4>SMTP 密码</h4>
-            <p class="settings-hint">状态: <strong id="settings-password-status">—</strong></p>
-            <div class="settings-password-row" id="settings-password-row">
-              <button class="btn btn--ghost" type="button" id="settings-password-edit-btn">修改密码</button>
-              <span class="settings-password-form" hidden>
-                <input type="password" id="settings-password-input" placeholder="新密码" autocomplete="new-password" />
-                <button class="btn btn--primary" type="button" id="settings-password-save-btn">保存</button>
-                <button class="btn btn--ghost" type="button" id="settings-password-cancel-btn">取消</button>
-              </span>
+          <!-- Card 2: SMTP server -->
+          <section class="settings-card">
+            <header class="settings-card__head">
+              <h4 class="settings-card__title">SMTP 服务器</h4>
+              <p class="settings-card__subtitle">邮件发送的服务器配置。修改后点保存生效。</p>
+            </header>
+            <div class="settings-card__body">
+              <div class="settings-field-grid">
+                <div class="settings-field">
+                  <label class="settings-field__label" for="settings-smtp-host">主机</label>
+                  <input class="settings-field__input" type="text" id="settings-smtp-host" autocomplete="off" placeholder="smtp.qq.com" />
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field__label" for="settings-smtp-port">端口</label>
+                  <input class="settings-field__input" type="number" id="settings-smtp-port" min="1" max="65535" autocomplete="off" placeholder="465" />
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field__label" for="settings-smtp-user">登录用户</label>
+                  <input class="settings-field__input" type="text" id="settings-smtp-user" autocomplete="off" placeholder="user@example.com" />
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field__label" for="settings-smtp-from">发件邮箱</label>
+                  <input class="settings-field__input" type="email" id="settings-smtp-from" autocomplete="off" placeholder="sender@example.com" />
+                </div>
+                <div class="settings-field settings-field--wide">
+                  <label class="settings-field__label" for="settings-smtp-send-time">每日发送时间</label>
+                  <input class="settings-field__input" type="text" id="settings-smtp-send-time" placeholder="HH:MM(24 小时制)" />
+                  <span class="settings-field__hint">使用服务器本地时区(UTC)</span>
+                </div>
+              </div>
+              <div class="settings-card__actions">
+                <button class="btn btn--primary" type="button" id="settings-smtp-save">保存 SMTP 设置</button>
+              </div>
+              <div class="settings-toggle-row">
+                <label class="settings-toggle">
+                  <input type="checkbox" id="settings-enabled-toggle" disabled />
+                  <span class="settings-toggle__track" aria-hidden="true"><span class="settings-toggle__thumb"></span></span>
+                  <span class="settings-toggle__text">
+                    <span class="settings-toggle__label">邮件报告</span>
+                    <span class="settings-toggle__sub">当前 <strong id="settings-enabled-label">—</strong></span>
+                  </span>
+                </label>
+                <span class="settings-toggle__hint">关闭需手改 <code>config.yaml</code></span>
+              </div>
+            </div>
+          </section>
+
+          <!-- Card 3: SMTP password -->
+          <section class="settings-card">
+            <header class="settings-card__head">
+              <h4 class="settings-card__title">SMTP 密码</h4>
+              <p class="settings-card__subtitle">用于 SMTP 服务器认证(写到 <code>.env</code>,不返回给前端)</p>
+            </header>
+            <div class="settings-card__body">
+              <div class="settings-password-row" id="settings-password-row">
+                <span class="status-pill" id="settings-password-status">—</span>
+                <button class="btn btn--secondary" type="button" id="settings-password-edit-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                  修改密码
+                </button>
+                <span class="settings-password-form" hidden>
+                  <input type="password" id="settings-password-input" placeholder="新密码" autocomplete="new-password" />
+                  <button class="btn btn--primary" type="button" id="settings-password-save-btn">保存</button>
+                  <button class="btn btn--ghost" type="button" id="settings-password-cancel-btn">取消</button>
+                </span>
+              </div>
             </div>
           </section>
         </div>
@@ -2311,18 +2356,32 @@
       settingsRecipientList.innerHTML = "";
       if (!settingsDraft.recipients.length) {
         var li = document.createElement("li");
-        li.textContent = "(暂无收件人)";
-        li.style.background = "transparent";
-        li.style.color = "#9ca3af";
+        li.textContent = "暂无收件人";
+        li.className = "settings-recipient-list__empty";
         settingsRecipientList.appendChild(li);
         return;
       }
       settingsDraft.recipients.forEach(function (addr, idx) {
         var li = document.createElement("li");
-        li.textContent = addr + " ";
+        // Avatar: first letter of local-part + deterministic hue from email hash.
+        var local = addr.split("@")[0] || "?";
+        var initial = local.charAt(0).toUpperCase();
+        var hash = 0;
+        for (var i = 0; i < addr.length; i++) {
+          hash = ((hash << 5) - hash + addr.charCodeAt(i)) | 0;
+        }
+        var hue = Math.abs(hash) % 360;
+        li.setAttribute("data-initial", initial);
+        li.style.setProperty("--chip-color", "hsl(" + hue + ", 55%, 48%)");
+        var emailSpan = document.createElement("span");
+        emailSpan.className = "settings-recipient-chip__email";
+        emailSpan.textContent = addr;
+        li.appendChild(emailSpan);
         var btn = document.createElement("button");
         btn.type = "button";
+        btn.className = "settings-recipient-chip__remove";
         btn.setAttribute("aria-label", "删除 " + addr);
+        btn.title = "删除";
         btn.textContent = "×";
         btn.addEventListener("click", function () {
           settingsDraft.recipients.splice(idx, 1);
@@ -2407,7 +2466,15 @@
       if (settingsEnabledToggle) settingsEnabledToggle.disabled = !!cfg.enabled;
       if (settingsPasswordStatus) {
         settingsPasswordStatus.textContent = cfg.smtp_password_set ? "已设置" : "未设置";
-        settingsPasswordStatus.style.color = cfg.smtp_password_set ? "#16a34a" : "#9ca3af";
+        settingsPasswordStatus.classList.toggle(
+          "status-pill--success", !!cfg.smtp_password_set
+        );
+        settingsPasswordStatus.classList.toggle(
+          "status-pill--neutral", !cfg.smtp_password_set
+        );
+        // Strip the inline color that an earlier version of the code may
+        // have set; the class drives the visual now.
+        settingsPasswordStatus.style.color = "";
       }
     }
     if (settingsPasswordEditBtn) {

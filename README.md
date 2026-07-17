@@ -1,89 +1,171 @@
 # Trae Token Dashboard
 
-本地 Web 仪表盘，监控 Trae 企业版账号的 **Token 消耗**（input + output）。每账号配额 5000 万；按当前计费周期（每月 10 号 ~ 下月 10 号）展示消耗、剩余、配额使用率，并可每日自动把汇总报告通过邮件发到指定收件人。
+> 一句话:**看 Trae 企业版各账号每个计费周期的 token 消耗,顺便每天自动邮件汇总。**
 
-## 特性
+![Dashboard 截图](docs/screenshots/dashboard.png)
 
-- 🎯 **企业版 OpenAPI 直连**：通过 `App ID + App Secret` 鉴权，调用 `/openapi/v1/statistics/user-model-usage` 端点
-- 📅 **按周期统计**：每月 10 号 00:00 UTC 自动重置；今天 < 10 号时取上月 10 号起
-- 💰 **每账号配额**：50M tokens / cycle；公司总 = per_account × 活跃账号数
-- 🧮 **展示加权**：Doubao 系列模型按 0.5 系数折算展示（与官网口径对齐，原始值仍保留在 DB）
-- 🔄 **后台定时拉取**：APScheduler 每小时同步（可选，`serve --with-scheduler` 开启）
-- 💾 **本地 SQLite 存储**：WAL 模式，所有数据持久化
-- 🎨 **纯前端**：vanilla HTML + JS，无构建步骤
-- 🌗 **明暗主题**：自动跟随系统 + 手动切换
-- 💡 **行内 Tooltip**：鼠标悬浮"消耗"列展示该账号各模型 input/output 明细
-- 📧 **每日邮件报告**：`report` 子命令渲染 HTML 表格通过 SMTP 发送，配合 Windows 任务计划 / cron 每日触发；header 一键触发手动发送
-- 🛠 **账号管理 Modal**：在 Web 界面新增 / 删除监控账号，type-to-confirm 防误删，cascade 删除 model_usage
-- 🧹 **`prune` 命令**：清理零数据账号 + 过期快照
+本地运行的 Web 仪表盘,展示公司所有 Trae 企业版账号的 token 用量,
+并支持每日自动把汇总报告通过邮件发给指定收件人。
+
+## 目录
+
+- [它能做什么](#它能做什么)
+- [界面长啥样](#界面长啥样)
+- [快速开始](#快速开始)
+  - [前置要求](#前置要求)
+  - [3 步跑起来](#3-步跑起来)
+- [配置项](#配置项)
+- [日常用法](#日常用法)
+- [邮件报告](#邮件报告)
+- [HTTP API](#http-api)
+- [架构](#架构)
+- [常见问题](#常见问题)
+- [开发 & 自定义](#开发--自定义)
+
+## 它能做什么
+
+- 📊 **实时面板**:总消耗、总配额、使用率、按账号排行;每账号点开看各模型明细
+- 📅 **按周期统计**:对齐 Trae 计费周期(每月 10 号 00:00 UTC 自动重置)
+- 💰 **配额追踪**:每账号 50M 默认配额;公司总额 = per_account × 监控账号数
+- ⚖️ **展示口径对齐**:Doubao 系列模型按 0.5 系数折算显示(和 Trae 官网一致)
+- 📧 **每日邮件报告**:每天定时把汇总表发到指定邮箱
+- 🛠 **Web 端配置**:不用改文件,在 dashboard 弹窗里加收件人 / 改 SMTP / 下载 `.eml` 自己发
+- 💾 **本地存储**:SQLite 文件,数据全在你机器上
+- 🌗 **明暗主题**:跟随系统 + 手动切换
+
+## 界面长啥样
+
+主面板 — 总览 + 账号表 + tooltip:
+
+![Dashboard 主面板](docs/screenshots/dashboard.png)
+
+「发送报告」弹窗 — 预览 + 下载 .eml + 改收件人/SMTP:
+
+![报告弹窗](docs/screenshots/report_modal.png)
+
+(截图是当前真实运行画面,带脱敏)
 
 ## 快速开始
 
+### 前置要求
+
+| 依赖 | 最低版本 | 备注 |
+|---|---|---|
+| Python | 3.11+ | 项目用了 `tomllib` 等 3.11 特性 |
+| Trae 企业版账号 | — | 需要「管理员」或「报表查看」角色 |
+| SMTP 服务器 | — | 只在要发邮件报告时需要,QQ/163/Gmail 都行 |
+| 操作系统 | Windows / macOS / Linux | 任务计划部署在 Windows / cron 部署在 Unix |
+
+### 3 步跑起来
+
 ```bash
-# 1. 安装
+# 第 1 步:装依赖
+git clone <this-repo>
+cd traeDashboard
 python -m venv .venv
-. .venv/bin/activate  # Windows: .venv\Scripts\activate
+. .venv/bin/activate             # Windows PowerShell: .venv\Scripts\Activate.ps1
 pip install -e ".[dev]"
 
-# 2. 准备凭证
-# 登录 https://console.enterprise.trae.cn 创建 App ID + App Secret
-# 写到 .env：
+# 第 2 步:登录 Trae 后台拿凭证,写到 .env
+#    https://console.enterprise.trae.cn → 创建 App ID + App Secret
 cat > .env <<'EOF'
 TRAE_APP_ID=<your_app_id>
 TRAE_APP_SECRET=<your_app_secret>
-SMTP_PASSWORD=<your_smtp_auth_code>   # 可选，启用邮件报告时需要
+# 下面这两个只在要发邮件报告时才需要
+SMTP_PASSWORD=<your_smtp_auth_code>
 EOF
 
-# 3. 生成 config.yaml 并启动
-python -m trae_dashboard init      # 从 config.example.yaml 复制生成 config.yaml
-python -m trae_dashboard fetch     # 拉一次数据
-python -m trae_dashboard serve     # 起 web 服务 (http://127.0.0.1:8765)
+# 第 3 步:生成配置、拉一次数据、起 Web 服务
+python -m trae_dashboard init       # 从 config.example.yaml 复制生成 config.yaml
+# 编辑 config.yaml:填 accounts(要监控的邮箱列表)+ email.*(要发邮件时)
+python -m trae_dashboard fetch      # 手动拉一次数据,写入 SQLite
+python -m trae_dashboard serve      # 起 Web 服务 → http://127.0.0.1:8765
 ```
+
+浏览器访问 `http://127.0.0.1:8765`,看到 dashboard = 成功。
+
+> 💡 默认端口 8765。如需改:`python -m trae_dashboard serve --port 8000`
 
 ## 配置项
 
-| YAML key | 默认 | 说明 |
+**两个配置文件:`config.yaml`(应用配置)和 `.env`(密钥)**。
+
+### `config.yaml` 字段
+
+| YAML key | 必填 | 默认 | 说明 |
+|---|---|---|---|
+| `openapi_base` | ✓ | `https://openapi.enterprise.trae.cn` | Trae OpenAPI host |
+| `auth_endpoint` | ✓ | `/openapi/v1/auth/access_token` | 鉴权端点(相对路径) |
+| `db_path` | — | `data/dashboard.db` | SQLite 文件路径 |
+| `fetch_interval_minutes` | — | `60` | 后台拉取间隔(仅 `--with-scheduler` 模式生效) |
+| `per_account_quota` | — | `50000000` | 每账号配额(50M tokens) |
+| `included_model_names` | — | 内置官方列表 | 严格白名单;非列表中的 API 响应不持久化 |
+| `accounts[]` | ✓ | (空) | **要监控的邮箱列表,建议 ≤ 20** |
+| `email.enabled` | — | `false` | 是否启用邮件报告 |
+| `email.smtp_host` | ⚠ | — | SMTP 服务器;启用 email 时必填 |
+| `email.smtp_port` | — | `465` | SMTP SSL 端口 |
+| `email.smtp_user` | ⚠ | — | SMTP 登录账号;启用 email 时必填 |
+| `email.smtp_password_env` | ⚠ | `SMTP_PASSWORD` | `.env` 中存放 SMTP 密码的变量名;启用 email 时必填 |
+| `email.from_addr` | ⚠ | — | 邮件 From 头(通常 = smtp_user);启用 email 时必填 |
+| `email.recipients[]` | ⚠ | (空) | 收件人邮箱列表;启用 email 时必填 |
+| `email.send_time` | — | `"09:00"` | 仅文档用,实际触发由任务计划控制 |
+
+> 图例:✓ 必填,⚠ 启用 email 时必填,— 可选
+
+### `.env` 字段
+
+| 变量名 | 必填 | 说明 |
 |---|---|---|
-| `openapi_base` | `https://openapi.enterprise.trae.cn` | OpenAPI host |
-| `auth_endpoint` | `/openapi/v1/auth/access_token` | 认证端点 |
-| `db_path` | `data/dashboard.db` | SQLite 文件路径 |
-| `fetch_interval_minutes` | `60` | 后台拉取间隔 |
-| `per_account_quota` | `50000000` | 单账号配额（50M） |
-| `included_model_names` | (内置官方列表) | 严格匹配白名单的模型名；非列表中的 API 响应不持久化、不计入统计 |
-| `accounts[]` | (空) | 邮箱列表（建议 ≤ 20） |
-| `email.enabled` | `false` | 是否启用邮件报告 |
-| `email.smtp_host` / `smtp_port` | — | SMTP 服务器地址 / 端口（SSL） |
-| `email.smtp_user` | — | SMTP 登录账号 |
-| `email.smtp_password_env` | `SMTP_PASSWORD` | 存放 SMTP 授权码的环境变量名（避免明文进 git） |
-| `email.from_addr` | — | 邮件 From 头，通常与 `smtp_user` 相同 |
-| `email.recipients[]` | (空) | 收件人邮箱列表 |
-| `email.send_time` | `"09:00"` | 仅文档用，实际触发由任务计划 / cron 控制 |
+| `TRAE_APP_ID` | ✓ | Trae 后台申请的 App ID |
+| `TRAE_APP_SECRET` | ✓ | Trae 后台申请的 App Secret(小心别 commit 进 git) |
+| `SMTP_PASSWORD` | ⚠ | SMTP 授权码(QQ 邮箱:设置 → 账户 → 开启 SMTP → 生成授权码);只在启用邮件报告时需要 |
 
-环境变量：
-- `TRAE_APP_ID` / `TRAE_APP_SECRET`：必填（OpenAPI 鉴权凭证）
-- `SMTP_PASSWORD`：可选（启用邮件报告时必填，SMTP 授权码）
+> 不想手改 `.env`?在 dashboard 弹窗 → 「邮件设置」Tab → 「修改密码」也能写。
 
-## CLI
+## 日常用法
 
-| 命令 | 作用 |
-|---|---|
-| `python -m trae_dashboard init` | 写 `config.example.yaml` 到 `config.yaml` |
-| `python -m trae_dashboard fetch` | 跑一次完整 fetch + 落库 |
-| `python -m trae_dashboard serve` | 起 web 服务（默认不开后台 scheduler，靠手动点刷新） |
-| `python -m trae_dashboard serve --with-scheduler` | 起 web 服务 + 后台每小时自动拉取 |
-| `python -m trae_dashboard prune` | 清理零数据账号 + 旧 snapshot |
-| `python -m trae_dashboard prune --dry-run` | 只报告要删什么，不实际删 |
-| `python -m trae_dashboard prune --keep-snapshots 10` | 保留最近 10 个 snapshot |
-| `python -m trae_dashboard report` | 渲染并发送当日邮件报告（需配置 `email` 段） |
-| `python -m trae_dashboard report --dry-run` | 只渲染 HTML 打印到 stdout，不发送（预览用） |
+### 添加 / 删除监控账号
 
-## 邮件报告部署
+两种方式都可以:
 
-`report` 是一次性命令，配合系统任务计划实现每日自动发送。
+**A. 改 config.yaml**(适合初次部署、改一批账号):
 
-**Windows 任务计划**（管理员 PowerShell）：
+```yaml
+accounts:
+  - email: alice@company.com
+    display_name: 爱丽丝
+  - email: bob@company.com
+```
+
+改完不需要重启 — 下次 fetch 或 refresh 时生效。
+
+**B. Web 弹窗**:点页面右上「账号管理」按钮 → 输入邮箱 → 「添加」。
+
+### 手动刷新数据
+
+dashboard 顶部 `刷新` 按钮 → 立刻拉一次最新数据。等不及任务计划的 1 小时就用这个。
+
+### 修改 SMTP / 收件人
+
+不用改文件。点 header 区域「发送报告」按钮 → 切到「**邮件设置**」Tab → 改完点保存 → 立即生效。
+
+### 导出 .eml 自己发
+
+点「发送报告」→「下载 .eml」→ 浏览器下载 `trae-report-YYYY-MM-DD.eml` →
+双击用 Outlook / Foxmail 打开 → To 已预填 → 自己加附件 / CC 发出。
+
+> 适用场景:SMTP 凭据没配、或想加额外内容、或临时只发给某几个人。
+
+## 邮件报告
+
+### 方式 A:CLI 触发(任务计划)
+
+`report` 是一次性命令,配合系统任务计划做每日自动发送。
+
+**Windows 任务计划**(管理员 PowerShell):
+
 ```powershell
-# 注册（每天 09:00 触发，日志写到 data\report_task.log）
+# 注册(每天 09:00 触发,日志写到 data\report_task.log)
 schtasks /create /tn "TraeDashboardDailyReport" `
   /tr "cmd /c C:\python\python.exe -m trae_dashboard report > E:\traeDashboard\data\report_task.log 2>&1" `
   /sc daily /st 09:00 /f
@@ -98,50 +180,61 @@ Get-ScheduledTaskInfo -TaskName "TraeDashboardDailyReport"
 schtasks /delete /tn "TraeDashboardDailyReport" /f
 ```
 
-**Linux / macOS cron**：
+**Linux / macOS cron**:
+
 ```cron
 0 9 * * * cd /path/to/traeDashboard && /path/to/python -m trae_dashboard report >> data/report_task.log 2>&1
 ```
 
-> 提示：任务以交互式登录用户身份运行时，需保证运行时已登录桌面；若需"未登录也跑"，请改用 `SYSTEM` 账户并配置好环境变量 / `.env` 读取路径。
+> 💡 任务以交互登录用户身份跑时,需保持桌面已登录;若需「未登录也跑」,改用 `SYSTEM` 账户 + 配好 `.env` 读取路径。
 
-### 在 UI 里修改收件人 / SMTP 配置
+### 方式 B:Web 弹窗手动触发
 
-「发送报告」弹窗里有两个 Tab:
+header 区域「发送报告」按钮 → 「确认发送」(走应用内 SMTP)或「下载 .eml」(本地邮件客户端发)。
 
-- **发送**: 选收件人 + 预览 + 「下载 .eml」/「确认发送」。
-- **邮件设置**: 增删收件人并保存; 编辑 SMTP 主机/端口/用户/发件邮箱/发送时间; 单独入口修改 SMTP 密码(写到 `.env`); 启用开关为只读(关闭需手改 `config.yaml`)。
+### 方式 C:dry-run 预览(不发)
 
-所有修改都立即生效(无需重启服务)。
+```bash
+python -m trae_dashboard report --dry-run
+```
+
+渲染 HTML 打印到 stdout,可重定向到文件在浏览器看:
+
+```bash
+python -m trae_dashboard report --dry-run > /tmp/preview.html
+```
 
 ## HTTP API
 
-| 端点 | 方法 | 返回 |
-|---|---|---|
-| `/api/health` | GET | `{ok}` |
-| `/api/status` | GET | 周期窗口、quota、consumed、remaining、utilization_pct、最后抓取时间 |
-| `/api/accounts` | GET | 每账号周期总额 + 配额使用率 + per-model 明细（用于 tooltip） |
-| `/api/accounts` | POST | 新增监控账号（body: `email`, `display_name?`），重复返回 409 |
-| `/api/accounts/{email}` | DELETE | 删除账号（级联 model_usage，保留 snapshots），幂等 |
-| `/api/accounts/{email}/history` | GET | 单账号 per-model 明细 |
-| `/api/refresh` | POST | 触发一次后台采集（同步返回） |
-| `/api/report` | POST | 触发一封邮件报告（同步返回） |
+完整 schema 见 [`src/trae_dashboard/api.py`](src/trae_dashboard/api.py)。下表是常用端点:
 
-完整 schema 见 `src/trae_dashboard/api.py`。
+| 端点 | 方法 | 用途 |
+|---|---|---|
+| `/api/health` | GET | 健康检查,返回 `{ok: true}` |
+| `/api/version` | GET | 当前服务 commit SHA(排查"是不是最新代码") |
+| `/api/status` | GET | 周期窗口、quota、consumed、remaining、利用率、最近抓取时间 |
+| `/api/accounts` | GET | 每账号周期总额 + 配额使用率 + per-model 明细(给 tooltip 用) |
+| `/api/accounts` | POST | 新增监控账号(`{email, display_name?}`),重复返 409 |
+| `/api/accounts/{email}` | DELETE | 删除账号(级联删除其 model_usage,保留 snapshots),幂等 |
+| `/api/accounts/{email}/history` | GET | 单账号 per-model 明细 |
+| `/api/refresh` | POST | 触发一次后台采集(同步返回) |
+| `/api/report/config` | GET | SMTP + 收件人配置(读,无密码) |
+| `/api/report/recipients` | PUT | 全量覆盖收件人列表 |
+| `/api/report/smtp` | PUT | 更新 SMTP 5 字段(主机/端口/用户/发件邮箱/发送时间) |
+| `/api/report/smtp/password` | POST | 写 SMTP 密码到 `.env`(响应不回密码) |
+| `/api/report` | POST | 触发一封邮件报告(同步返回) |
+| `/api/report/eml` | GET / POST | 下载 RFC-822 `.eml` 文件(`To` 用 `recipients` 参数预填) |
 
 ## 架构
 
 ```mermaid
 flowchart TB
-    %% ====== 外部 ======
     User["🌐 用户浏览器"]
-    SchedExt["⏰ 系统任务计划<br/>Windows Task Scheduler / cron"]
-    TraeAPI["☁️ Trae Enterprise OpenAPI"]
-    SMTP["📤 SMTP 服务器<br/>smtp.qq.com:465"]
+    SchedExt["⏰ 任务计划<br/>Task Scheduler / cron"]
+    TraeAPI["☁️ Trae Enterprise<br/>OpenAPI"]
+    SMTP["📤 SMTP 服务器"]
 
-    %% ====== CLI 入口 ======
     subgraph CLI["CLI 入口 (python -m trae_dashboard)"]
-        direction LR
         CmdInit["init"]
         CmdFetch["fetch"]
         CmdServe["serve"]
@@ -149,38 +242,30 @@ flowchart TB
         CmdReport["report"]
     end
 
-    %% ====== 后端模块 ======
     subgraph Backend["后端 (src/trae_dashboard/)"]
-        direction TB
-        Config["config + config_writer + validation"]
+        Config["config + config_writer<br/>+ validation"]
         Cycle["cycle<br/>周期窗口"]
         Client["client + auth<br/>OpenAPI + Bearer"]
-        Collector["collector<br/>拉取 + 持久化"]
+        Collector["collector"]
         Storage["storage<br/>SQLite + display_weights"]
         Sched["scheduler<br/>APScheduler"]
         Report["report<br/>HTML + SMTP + .eml"]
         API["api<br/>FastAPI 路由"]
     end
 
-    %% ====== 前端 ======
     subgraph Frontend["前端 (static/)"]
-        direction LR
-        UI["index.html + app.js + style.css"]
+        UI["index.html + app.js<br/>+ style.css + tokens.css"]
     end
 
-    %% ====== 持久化 ======
-    subgraph Storage_["持久化"]
-        direction LR
+    subgraph Persist["持久化"]
         DB[("SQLite<br/>dashboard.db")]
         Yaml[("config.yaml")]
         Env[(".env")]
     end
 
-    %% 连线:用户交互
     User -- HTTP --> API
     UI -- fetch --> API
 
-    %% 连线:CLI 触发
     SchedExt -- 每日定时 --> CmdReport
     CmdInit -- 写 --> Yaml
     CmdServe --> API
@@ -188,7 +273,6 @@ flowchart TB
     CmdPrune --> Storage
     CmdReport --> Report
 
-    %% 连线:数据采集链
     Collector --> Client
     Collector --> Storage
     Client -- HTTPS --> TraeAPI
@@ -197,29 +281,24 @@ flowchart TB
     Cycle -. 周期窗口 .-> Storage
     Cycle -. 周期窗口 .-> Report
 
-    %% 连线:API 服务
     API --> Storage
     API --> Config
     API --> Report
 
-    %% 连线:配置写回
     Config -- 读 --> Yaml
     Config -- 读 --> Env
     Config -- 写回 --> Yaml
     Config -- 写回 --> Env
 
-    %% 连线:邮件
     Report -- SMTP_SSL --> SMTP
     Report --> Storage
-
-    %% 连线:持久化
     Storage -- 读写 --> DB
 
-    classDef ext fill:#e0e7ff,stroke:#4338ca,color:#1e1b4b
-    classDef cli fill:#fef3c7,stroke:#b45309,color:#78350f
-    classDef backend fill:#dcfce7,stroke:#15803d,color:#14532d
-    classDef frontend fill:#fce7f3,stroke:#be185d,color:#831843
-    classDef store fill:#f1f5f9,stroke:#475569,color:#0f172a
+    classDef ext fill:#e0e7ff,stroke:#4338ca
+    classDef cli fill:#fef3c7,stroke:#b45309
+    classDef backend fill:#dcfce7,stroke:#15803d
+    classDef frontend fill:#fce7f3,stroke:#be185d
+    classDef store fill:#f1f5f9,stroke:#475569
 
     class User,SchedExt,TraeAPI,SMTP ext
     class CmdInit,CmdFetch,CmdServe,CmdPrune,CmdReport cli
@@ -228,77 +307,105 @@ flowchart TB
     class DB,Yaml,Env store
 ```
 
-**图例**:
-- 实线 → 直接调用 / 同步数据流;虚线 `-.->` 间接依赖 / 定时触发
-- 蓝色=外部系统,黄色=CLI,绿色=后端模块,粉色=前端,灰色=存储
-
 **三大数据流**:
 
-1. **拉数据**:Trae OpenAPI → `client.py` → `collector.py` → `storage.py` → SQLite。触发方式:`serve --with-scheduler` 每小时调,或 `python -m trae_dashboard fetch` 手动。
-2. **展示数据**:浏览器 → `index.html`(静态)→ `/api/*` → `storage.py`(读路径应用 `display_weights` 加权)→ SQLite。静态文件由 `api.py` 的 `mount("/")` 提供。
-3. **邮件报告**:触发源 → `report.py` → `storage.py`(读当前周期)+ SMTP 发送 / `.eml` 导出。触发源:CLI `report`、Web `POST /api/report`、Web `GET|POST /api/report/eml` 下载本地。
+1. **拉数据**:Trae OpenAPI → `client.py` → `collector.py` → `storage.py` → SQLite。触发方式:`serve --with-scheduler` 每小时,或 `python -m trae_dashboard fetch` 手动。
+2. **展示数据**:浏览器 → `index.html`(静态)→ `/api/*` → `storage.py`(读路径应用 `display_weights` 加权)→ SQLite。
+3. **邮件报告**:触发源 → `report.py` → `storage.py`(读当前周期)+ SMTP 发送 / `.eml` 导出。
 
-**配置写回**:前端「邮件设置」Tab → `api.py` → `config_writer.py` → 写回 `config.yaml` / `.env`,无需重启服务即时生效。
+完整版架构图(节点说明 + 字段级注释)见 [`docs/architecture.md`](docs/architecture.md)。
 
-完整版(含每个子图细节 + 字段说明)见 [`docs/architecture.md`](docs/architecture.md)。
+## 常见问题
 
-## 项目结构
+<details>
+<summary><b>Q: 「Access denied / 401」— 拉不到数据</b></summary>
 
-```
-traeDashboard/
-├── pyproject.toml
-├── README.md
-├── config.example.yaml          # 配置模板（含 email 段示例）
-├── .env.example                 # 环境变量模板
-├── data/
-│   ├── dashboard.db             # SQLite（运行时生成）
-│   └── report_task.log          # 邮件任务日志（运行时生成）
-├── src/trae_dashboard/
-│   ├── api.py                   # FastAPI 路由
-│   ├── auth.py                  # Bearer Token 管理
-│   ├── cli.py                   # 命令行入口
-│   ├── client.py                # Trae OpenAPI 客户端
-│   ├── collector.py             # 数据采集器
-│   ├── config.py                # 配置加载（含 EmailConfig）
-│   ├── cycle.py                 # 周期窗口计算
-│   ├── report.py                # 邮件渲染 + SMTP 发送
-│   ├── scheduler.py             # APScheduler 后台拉取
-│   ├── storage.py               # SQLite 存储（含 display_weights 加权读路径）
-│   └── static/                  # 前端
-│       ├── index.html
-│       ├── app.js
-│       ├── style.css
-│       └── tokens.css
-└── tests/                       # 142 个测试
-```
+- 检查 `.env` 里 `TRAE_APP_ID` / `TRAE_APP_SECRET` 没填错、没多空格
+- 在 Trae 后台确认 App 还「启用」状态,Secret 没被重置过
+- App 没勾选「用户模型用量」权限 → 后台 → 应用 → 权限管理
+</details>
 
-## 验收清单
-
-- [x] `python -m trae_dashboard init` 写入示例配置
-- [x] `python -m trae_dashboard fetch` 成功并写入 SQLite
-- [x] `python -m trae_dashboard serve` 监听 127.0.0.1:8765
-- [x] 浏览器看到 3 个 KPI 卡 + 配额条 + 账号表格
-- [x] 数据 = Trae UI 显示的周期总额（无 per-day 失真）
-- [x] Doubao 系列模型按 0.5 加权展示，与官网口径一致
-- [x] 鼠标悬浮"消耗"列显示各模型明细 tooltip
-- [x] 主题切换（明 / 暗）工作
-- [x] `python -m trae_dashboard report --dry-run` 渲染 HTML 正常
-- [x] `python -m trae_dashboard report` 真实发送邮件成功
-- [x] Windows 任务计划每日 09:00 触发，日志写入 `data/report_task.log`
-- [x] 浏览器控制台无错误
-- [x] 所有 pytest 用例通过
-- [x] 账号管理 Modal：新增 / 删除 + type-to-confirm 防误删
-- [x] 数据陈旧时 header 显式文字提示（>1h 变橙 + "较旧,请刷新"）
-- [x] 配额 = 0 时 quota bar 灰空 + KPI 显示"未配置"（不再误判"已超额"）
-
-## 测试 & 代码质量
+<details>
+<summary><b>Q: 端口 8765 被占用</b></summary>
 
 ```bash
-pytest                          # 全部通过
-pytest --cov=trae_dashboard     # 覆盖率
-ruff check src/ tests/          # lint
-black --check src/ tests/       # format
+# 找占用进程
+netstat -ano | findstr :8765          # Windows
+lsof -i :8765                          # macOS / Linux
+
+# 换端口启动
+python -m trae_dashboard serve --port 8000
 ```
+</details>
+
+<details>
+<summary><b>Q: SMTP 发不出去 / 认证失败</b></summary>
+
+- QQ 邮箱:`SMTP_PASSWORD` 不是登录密码,是「设置 → 账户 → 开启 POP3/SMTP → 生成授权码」那个
+- Gmail:需要「应用专用密码」,不能直接用账户密码
+- 检查 `email.smtp_user` 跟 `from_addr` 一致
+- 端口不是 25(我们用 SSL 465,代码写死)
+</details>
+
+<details>
+<summary><b>Q: SQLite database is locked</b></summary>
+
+后台 scheduler 和手动 fetch / 刷新不能同时跑(共享 SQLite)。一般等几秒重试就行。
+要是持续锁,关掉所有 `python -m trae_dashboard serve` / `fetch` 进程再试。
+</details>
+
+<details>
+<summary><b>Q: 数据看起来不对 / 跟 Trae 官网数字不一致</b></summary>
+
+- 确认 `config.yaml` 里 `accounts[]` 跟 Trae 后台看的账号列表一致(大小写、域名)
+- `display_weights` 默认把 Doubao-Seed-Code × 0.5 — 这是为了跟官网 UI 一致;如果不想加权,把它改成空 dict
+- 周期窗口不对?今天是 7 号 < 10 号,看的是「上月 10 号 ~ 今天」的累计
+</details>
+
+<details>
+<summary><b>Q: 升级后端口仍是 8765 但页面异常</b></summary>
+
+浏览器 cache 了旧 JS。按 `Ctrl+Shift+R` 硬刷新一次。
+如果还有问题,运行 `verify-eml.bat`(项目根目录)做 5 项自检。
+</details>
+
+<details>
+<summary><b>Q: 想监控超过 20 个账号</b></summary>
+
+OpenAPI 单次请求限制 20 邮箱。代码内部按 20/批循环拉(见 `client.py`)。
+实测 100 账号也能跑,只是 fetch 慢一些。
+</details>
+
+## 开发 & 自定义
+
+### 测试
+
+```bash
+pytest                              # 全部测试(应 171+ 通过)
+pytest --cov=trae_dashboard         # 覆盖率
+ruff check src/ tests/              # lint
+black --check src/ tests/           # format
+```
+
+### 加新模块
+
+`src/trae_dashboard/` 下创建 `xxx.py`,在 `cli.py` 加子命令,在 `api.py` 加路由。
+新模块如果走 OpenAPI,记得在 `client.py` 加方法。
+
+### 设计文档
+
+- 架构详解:[`docs/architecture.md`](docs/architecture.md)
+- 计划 / 设计:[`docs/plans/`](docs/plans/)(`2026-07-16-email-report-enhancement-*.md` 是最近的邮件功能增强)
+
+### 故障自检
+
+跑 `verify-eml.bat`(Windows)做 5 项端到端检查并打印 PASS/FAIL。
+
+## 兼容性
+
+- Python **3.11+**(用 `tomllib`、`datetime.UTC` 等)
+- Windows / macOS / Linux 都支持
+- 浏览器:Chrome / Edge / Firefox / Safari 最近 2 个大版本
 
 ## License
 

@@ -47,3 +47,8 @@ skills-lock.json
 # Personal screenshots / PDF notes (Snipaste captures, dashboard snapshots)
 Snipaste_*.png
 dashboard-screenshot.*
+
+# Sample .eml output (regeneratable from /api/report/eml; kept locally for
+# offline inspection, not part of the repo).
+trae-report-sample-*.eml
+.verify-eml-test.bin

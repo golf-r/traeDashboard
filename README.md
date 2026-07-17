@@ -129,6 +129,119 @@ schtasks /delete /tn "TraeDashboardDailyReport" /f
 
 完整 schema 见 `src/trae_dashboard/api.py`。
 
+## 架构
+
+```mermaid
+flowchart TB
+    %% ====== 外部 ======
+    User["🌐 用户浏览器"]
+    SchedExt["⏰ 系统任务计划<br/>Windows Task Scheduler / cron"]
+    TraeAPI["☁️ Trae Enterprise OpenAPI"]
+    SMTP["📤 SMTP 服务器<br/>smtp.qq.com:465"]
+
+    %% ====== CLI 入口 ======
+    subgraph CLI["CLI 入口 (python -m trae_dashboard)"]
+        direction LR
+        CmdInit["init"]
+        CmdFetch["fetch"]
+        CmdServe["serve"]
+        CmdPrune["prune"]
+        CmdReport["report"]
+    end
+
+    %% ====== 后端模块 ======
+    subgraph Backend["后端 (src/trae_dashboard/)"]
+        direction TB
+        Config["config + config_writer + validation"]
+        Cycle["cycle<br/>周期窗口"]
+        Client["client + auth<br/>OpenAPI + Bearer"]
+        Collector["collector<br/>拉取 + 持久化"]
+        Storage["storage<br/>SQLite + display_weights"]
+        Sched["scheduler<br/>APScheduler"]
+        Report["report<br/>HTML + SMTP + .eml"]
+        API["api<br/>FastAPI 路由"]
+    end
+
+    %% ====== 前端 ======
+    subgraph Frontend["前端 (static/)"]
+        direction LR
+        UI["index.html + app.js + style.css"]
+    end
+
+    %% ====== 持久化 ======
+    subgraph Storage_["持久化"]
+        direction LR
+        DB[("SQLite<br/>dashboard.db")]
+        Yaml[("config.yaml")]
+        Env[(".env")]
+    end
+
+    %% 连线:用户交互
+    User -- HTTP --> API
+    UI -- fetch --> API
+
+    %% 连线:CLI 触发
+    SchedExt -- 每日定时 --> CmdReport
+    CmdInit -- 写 --> Yaml
+    CmdServe --> API
+    CmdFetch --> Collector
+    CmdPrune --> Storage
+    CmdReport --> Report
+
+    %% 连线:数据采集链
+    Collector --> Client
+    Collector --> Storage
+    Client -- HTTPS --> TraeAPI
+    Sched -. 每小时 .-> Collector
+    Cycle -. 周期窗口 .-> Collector
+    Cycle -. 周期窗口 .-> Storage
+    Cycle -. 周期窗口 .-> Report
+
+    %% 连线:API 服务
+    API --> Storage
+    API --> Config
+    API --> Report
+
+    %% 连线:配置写回
+    Config -- 读 --> Yaml
+    Config -- 读 --> Env
+    Config -- 写回 --> Yaml
+    Config -- 写回 --> Env
+
+    %% 连线:邮件
+    Report -- SMTP_SSL --> SMTP
+    Report --> Storage
+
+    %% 连线:持久化
+    Storage -- 读写 --> DB
+
+    classDef ext fill:#e0e7ff,stroke:#4338ca,color:#1e1b4b
+    classDef cli fill:#fef3c7,stroke:#b45309,color:#78350f
+    classDef backend fill:#dcfce7,stroke:#15803d,color:#14532d
+    classDef frontend fill:#fce7f3,stroke:#be185d,color:#831843
+    classDef store fill:#f1f5f9,stroke:#475569,color:#0f172a
+
+    class User,SchedExt,TraeAPI,SMTP ext
+    class CmdInit,CmdFetch,CmdServe,CmdPrune,CmdReport cli
+    class Config,Cycle,Client,Collector,Storage,Sched,Report,API backend
+    class UI frontend
+    class DB,Yaml,Env store
+```
+
+**图例**:
+- 实线 → 直接调用 / 同步数据流;虚线 `-.->` 间接依赖 / 定时触发
+- 蓝色=外部系统,黄色=CLI,绿色=后端模块,粉色=前端,灰色=存储
+
+**三大数据流**:
+
+1. **拉数据**:Trae OpenAPI → `client.py` → `collector.py` → `storage.py` → SQLite。触发方式:`serve --with-scheduler` 每小时调,或 `python -m trae_dashboard fetch` 手动。
+2. **展示数据**:浏览器 → `index.html`(静态)→ `/api/*` → `storage.py`(读路径应用 `display_weights` 加权)→ SQLite。静态文件由 `api.py` 的 `mount("/")` 提供。
+3. **邮件报告**:触发源 → `report.py` → `storage.py`(读当前周期)+ SMTP 发送 / `.eml` 导出。触发源:CLI `report`、Web `POST /api/report`、Web `GET|POST /api/report/eml` 下载本地。
+
+**配置写回**:前端「邮件设置」Tab → `api.py` → `config_writer.py` → 写回 `config.yaml` / `.env`,无需重启服务即时生效。
+
+完整版(含每个子图细节 + 字段说明)见 [`docs/architecture.md`](docs/architecture.md)。
+
 ## 项目结构
 
 ```

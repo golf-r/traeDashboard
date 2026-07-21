@@ -2506,6 +2506,32 @@ footer.foot code {
 }
 
 /* ---------- Report modal (发送报告) ---------- */
+/* 邮件发送页面:统一字体为微软雅黑(覆盖 --font-sans / --font-mono / code / mono / num) */
+#report-modal,
+#report-modal *,
+#report-modal *::before,
+#report-modal *::after {
+  font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC",
+               -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, Helvetica, Arial, sans-serif !important;
+  font-variant-numeric: normal;
+}
+#report-modal code,
+#report-modal .mono,
+#report-modal .num {
+  font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC",
+               -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, Helvetica, Arial, sans-serif !important;
+}
+#report-modal input,
+#report-modal button,
+#report-modal select,
+#report-modal textarea {
+  font-family: "Microsoft YaHei", "微软雅黑", "PingFang SC",
+               -apple-system, BlinkMacSystemFont, "Segoe UI",
+               Roboto, Helvetica, Arial, sans-serif !important;
+}
+
 .modal--report {
   max-width: 880px;
   max-height: 88vh;

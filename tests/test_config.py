@@ -2,7 +2,7 @@
 from __future__ import annotations
 import pytest
 
-from trae_dashboard.config import Account, Config, load_config
+from trae_dashboard.config import Account, Config, EmailConfig, load_config
 
 
 def test_load_minimal_config(tmp_data_dir, monkeypatch):
@@ -30,8 +30,6 @@ accounts:
     assert len(cfg.accounts) == 2
     assert isinstance(cfg.accounts[0], Account)
     assert cfg.accounts[0].email == "a@x.com"
-    assert cfg.accounts[0].display_name == "A"
-    assert cfg.accounts[1].display_name is None
 
 
 def test_load_config_missing_app_creds_raises(tmp_data_dir, monkeypatch):
@@ -59,7 +57,9 @@ app_secret_env: TRAE_APP_SECRET
     cfg = load_config(cfg_file)
     assert cfg.db_path == "data/dashboard.db"
     assert cfg.fetch_interval_minutes == 60
-    assert cfg.per_account_quota == 50_000_000
+    # NEW: quota is now 120.0 CNY (float), not 50M tokens (int)
+    assert cfg.per_account_quota == 120.0
+    assert isinstance(cfg.per_account_quota, float)
 
 
 def test_load_config_missing_file_raises(tmp_data_dir):
@@ -67,8 +67,8 @@ def test_load_config_missing_file_raises(tmp_data_dir):
         load_config(tmp_data_dir / "nope.yaml")
 
 
-def test_load_config_with_quota(tmp_data_dir, monkeypatch):
-    """Custom per_account_quota is loaded; default is 50_000_000."""
+def test_load_config_with_quota_override(tmp_data_dir, monkeypatch):
+    """Custom per_account_quota (float, in CNY) is loaded."""
     cfg_file = tmp_data_dir / "config.yaml"
     cfg_file.write_text(
         """
@@ -76,160 +76,30 @@ openapi_base: x
 auth_endpoint: /auth
 app_id_env: TRAE_APP_ID
 app_secret_env: TRAE_APP_SECRET
-per_account_quota: 12345678
+per_account_quota: 200.5
 """,
         encoding="utf-8",
     )
     monkeypatch.setenv("TRAE_APP_ID", "id")
     monkeypatch.setenv("TRAE_APP_SECRET", "sec")
     cfg = load_config(cfg_file)
-    assert cfg.per_account_quota == 12345678
+    assert cfg.per_account_quota == 200.5
 
 
-def test_load_config_quota_default(tmp_data_dir, monkeypatch):
-    """When per_account_quota is missing, default to 50_000_000."""
-    cfg_file = tmp_data_dir / "config.yaml"
-    cfg_file.write_text(
-        """
-openapi_base: x
-auth_endpoint: /auth
-app_id_env: TRAE_APP_ID
-app_secret_env: TRAE_APP_SECRET
-""",
-        encoding="utf-8",
+def test_config_no_longer_has_whitelist_fields():
+    """Config dataclass must not expose included_model_names/model_aliases/display_weights."""
+    cfg = Config(
+        openapi_base="x", auth_endpoint="/a",
+        app_id="id", app_secret="sec",
     )
-    monkeypatch.setenv("TRAE_APP_ID", "id")
-    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
-    cfg = load_config(cfg_file)
-    assert cfg.per_account_quota == 50_000_000
+    assert not hasattr(cfg, "included_model_names")
+    assert not hasattr(cfg, "model_aliases")
+    assert not hasattr(cfg, "display_weights")
 
 
-def test_load_config_monthly_quota_backward_compat(tmp_data_dir, monkeypatch):
-    """Backward compat: deprecated monthly_quota key is still honored."""
-    cfg_file = tmp_data_dir / "config.yaml"
-    cfg_file.write_text(
-        """
-openapi_base: x
-auth_endpoint: /auth
-monthly_quota: 22222222
-""",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("TRAE_APP_ID", "id")
-    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
-    cfg = load_config(cfg_file)
-    assert cfg.per_account_quota == 22_222_222
-
-
-# ---------------------------------------------------------------------------
-# included_model_names allowlist
-# ---------------------------------------------------------------------------
-
-
-def test_load_config_default_included_model_names(tmp_data_dir, monkeypatch):
-    """When `included_model_names` is missing, the built-in default is used.
-
-    Default contains the official model names from the design doc and does
-    NOT contain deprecated "CUE".
-    """
-    cfg_file = tmp_data_dir / "config.yaml"
-    cfg_file.write_text(
-        """
-openapi_base: x
-auth_endpoint: /auth
-""",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("TRAE_APP_ID", "id")
-    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
-
-    cfg = load_config(cfg_file)
-
-    assert "GLM-5.1" in cfg.included_model_names
-    assert "DeepSeek-V3.2" in cfg.included_model_names
-    assert "CUE" not in cfg.included_model_names
-
-
-def test_load_config_custom_included_model_names_strict_values(tmp_data_dir, monkeypatch):
-    """Custom allowlist is loaded as a strict-match set (no case folding, dedup)."""
-    cfg_file = tmp_data_dir / "config.yaml"
-    cfg_file.write_text(
-        """
-openapi_base: x
-auth_endpoint: /auth
-included_model_names:
-  - glm-5.1
-  - DeepSeek-V4-Pro
-  - glm-5.1
-""",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("TRAE_APP_ID", "id")
-    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
-
-    cfg = load_config(cfg_file)
-
-    assert cfg.included_model_names == {"glm-5.1", "DeepSeek-V4-Pro"}
-    assert "GLM-5.1" not in cfg.included_model_names
-
-
-@pytest.mark.parametrize(
-    "yaml_value",
-    [
-        "included_model_names: CUE",
-        "included_model_names:\n  - ''",
-        "included_model_names:\n  - 123",
-    ],
-)
-def test_load_config_invalid_included_model_names_raises(
-    tmp_data_dir, monkeypatch, yaml_value
-):
-    """Non-list values, non-string items, and empty strings all raise."""
-    cfg_file = tmp_data_dir / "config.yaml"
-    cfg_file.write_text(
-        f"""
-openapi_base: x
-auth_endpoint: /auth
-{yaml_value}
-""",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("TRAE_APP_ID", "id")
-    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
-
-    with pytest.raises(RuntimeError, match="included_model_names"):
-        load_config(cfg_file)
-
-
-def test_load_config_model_aliases_basic(tmp_data_dir, monkeypatch):
-    """Aliases are loaded as canonical_name -> list[str]."""
-    cfg_file = tmp_data_dir / "config.yaml"
-    cfg_file.write_text(
-        """
-openapi_base: x
-auth_endpoint: /auth
-included_model_names:
-  - Doubao-Seed-Code
-  - GLM-5.1
-model_aliases:
-  Doubao-Seed-Code:
-    - Doubao_1_6
-    - doubao_legacy
-""",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("TRAE_APP_ID", "id")
-    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
-    cfg = load_config(cfg_file)
-    assert cfg.model_aliases == {
-        "Doubao-Seed-Code": ["Doubao_1_6", "doubao_legacy"]
-    }
-
-
-def test_load_config_model_aliases_canonical_must_be_in_allowlist(
-    tmp_data_dir, monkeypatch
-):
-    """Aliases can only point to names already in included_model_names."""
+def test_load_config_ignores_legacy_whitelist_keys(tmp_data_dir, monkeypatch):
+    """Old configs that still contain included_model_names/display_weights/model_aliases
+    should load without error (the keys are simply ignored, not stored)."""
     cfg_file = tmp_data_dir / "config.yaml"
     cfg_file.write_text(
         """
@@ -237,31 +107,58 @@ openapi_base: x
 auth_endpoint: /auth
 included_model_names:
   - GLM-5.1
+display_weights:
+  GLM-5.1: 1.0
 model_aliases:
-  NotInAllowlist:
-    - Doubao_1_6
-""",
-        encoding="utf-8",
-    )
-    monkeypatch.setenv("TRAE_APP_ID", "id")
-    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
-    with pytest.raises(RuntimeError, match="model_aliases"):
-        load_config(cfg_file)
-
-
-def test_load_config_model_aliases_missing_defaults_to_empty(
-    tmp_data_dir, monkeypatch
-):
-    """When `model_aliases` is missing, default to empty dict."""
-    cfg_file = tmp_data_dir / "config.yaml"
-    cfg_file.write_text(
-        """
-openapi_base: x
-auth_endpoint: /auth
+  GLM-5.1: glm
 """,
         encoding="utf-8",
     )
     monkeypatch.setenv("TRAE_APP_ID", "id")
     monkeypatch.setenv("TRAE_APP_SECRET", "sec")
     cfg = load_config(cfg_file)
-    assert cfg.model_aliases == {}
+    assert not hasattr(cfg, "included_model_names")
+    assert not hasattr(cfg, "model_aliases")
+    assert not hasattr(cfg, "display_weights")
+
+
+def test_email_section_loaded(tmp_data_dir, monkeypatch):
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text(
+        """
+openapi_base: x
+auth_endpoint: /auth
+email:
+  enabled: true
+  smtp_host: smtp.qq.com
+  smtp_port: 465
+  smtp_user: x@y.com
+  from_addr: x@y.com
+  recipients:
+    - r@z.com
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("TRAE_APP_ID", "id")
+    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
+    cfg = load_config(cfg_file)
+    assert isinstance(cfg.email, EmailConfig)
+    assert cfg.email.enabled is True
+    assert cfg.email.smtp_host == "smtp.qq.com"
+    assert cfg.email.recipients == ["r@z.com"]
+
+
+def test_load_config_rejects_user_metrics_endpoint(tmp_data_dir, monkeypatch):
+    """user-metrics endpoint is deprecated; only /user-model-usage is allowed."""
+    cfg_file = tmp_data_dir / "config.yaml"
+    cfg_file.write_text(
+        """
+openapi_base: https://api.trae.cn/user-metrics
+auth_endpoint: /auth
+""",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("TRAE_APP_ID", "id")
+    monkeypatch.setenv("TRAE_APP_SECRET", "sec")
+    with pytest.raises(ValueError, match="user-metrics"):
+        load_config(cfg_file)

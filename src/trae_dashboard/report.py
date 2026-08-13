@@ -37,28 +37,21 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class ReportRow:
-    """One row in the email table — already weighted, ready to render."""
+    """One row in the email table — amount-based, ready to render."""
 
     display_name: str
     email: str
-    input_tokens: int
-    output_tokens: int
-    consumed: int
+    amount_total: float
     quota_pct: float
     top_model: str
-    top_model_consumed: int
+    top_model_amount: float
+    input_tokens: int
+    output_tokens: int
 
 
-def _fmt_tokens(n: int) -> str:
-    """Human-friendly token count: 12,345,678 -> '12.3M' / '4,567' -> '4.6K'.
-
-    Keeps the email narrow; the dashboard already shows exact numbers.
-    """
-    if n >= 1_000_000:
-        return f"{n / 1_000_000:.1f}M"
-    if n >= 1_000:
-        return f"{n / 1_000:.1f}K"
-    return str(n)
+def _fmt_cny(n: float) -> str:
+    """Format a CNY amount: 1234.5 -> '¥ 1,234.50'."""
+    return "¥ {:,.2f}".format(float(n or 0))
 
 
 def _quota_color(pct: float) -> str:
@@ -81,50 +74,37 @@ def _esc(s: str) -> str:
 
 
 def collect_report_rows(storage: Storage, cfg: Config) -> list[ReportRow]:
-    """Build the per-account rows for the current cycle.
-
-    Reads the weighted per-account totals (matches dashboard numbers),
-    then for each account fetches the per-model breakdown to pick the
-    top-consuming model.
-    """
     start_dt, _ = current_cycle_window()
     start_date = start_dt.date().isoformat()
     end_date = datetime.now(timezone.utc).date().isoformat()
     per_q = cfg.per_account_quota
 
-    accounts = storage.get_model_usage_by_account(
-        start_date, end_date, cfg.included_model_names
-    )
+    accounts = storage.get_model_usage_by_account(start_date, end_date)
     rows: list[ReportRow] = []
     for a in accounts:
         email = a["email"]
-        in_n = int(a["input_tokens"] or 0)
-        out_n = int(a["output_tokens"] or 0)
-        consumed = in_n + out_n
-        pct = round((consumed / per_q) * 100, 1) if per_q > 0 else 0.0
+        amount = float(a["amount_total"] or 0)
+        pct = round((amount / per_q) * 100, 1) if per_q > 0 else 0.0
 
-        # Per-model breakdown to find the top model for this account.
-        models = storage.get_model_usage_for_account(
-            email, start_date, cfg.included_model_names
-        )
+        models = storage.get_model_usage_for_account(email, start_date)
         if models:
-            top = max(models, key=lambda m: m.input_tokens + m.output_tokens)
+            top = max(models, key=lambda m: m.amount_total)
             top_name = top.model_name
-            top_consumed = top.input_tokens + top.output_tokens
+            top_amount = top.amount_total
         else:
             top_name = "—"
-            top_consumed = 0
+            top_amount = 0.0
 
         rows.append(
             ReportRow(
                 display_name=a["display_name"] or email.split("@")[0],
                 email=email,
-                input_tokens=in_n,
-                output_tokens=out_n,
-                consumed=consumed,
+                amount_total=amount,
                 quota_pct=pct,
                 top_model=top_name,
-                top_model_consumed=top_consumed,
+                top_model_amount=top_amount,
+                input_tokens=int(a["input_tokens"] or 0),
+                output_tokens=int(a["output_tokens"] or 0),
             )
         )
     return rows
@@ -136,27 +116,14 @@ def render_html(
     cycle_start: datetime,
     now: datetime,
 ) -> str:
-    """Render the daily report as a self-contained HTML document.
-
-    Uses inline CSS (no `<style>` block) for maximum email-client
-    compatibility. Output is a UTF-8 HTML string.
-    """
-    total_consumed = sum(r.consumed for r in rows)
-    # Use the rendered row count (driven by storage) as the denominator,
-    # not `len(cfg.accounts)`. Accounts added via the dashboard's
-    # POST /api/accounts endpoint are persisted in the DB but never
-    # written back to config.yaml — counting them from cfg would silently
-    # under-count the company and inflate utilization_pct. This matches
-    # the /api/status endpoint's formula.
+    total_consumed = sum(r.amount_total for r in rows)
     total_quota = cfg.per_account_quota * len(rows)
     total_pct = (
         round((total_consumed / total_quota) * 100, 1) if total_quota > 0 else 0.0
     )
 
-    # Cycle dates in UTC for the header (e.g. "2026-06-10 → 2026-07-06").
     cycle_str = f"{cycle_start.strftime('%Y-%m-%d')} → {now.strftime('%Y-%m-%d')}"
 
-    # Build table rows
     table_rows_html = []
     for r in rows:
         color = _quota_color(r.quota_pct)
@@ -167,17 +134,14 @@ def render_html(
             <div style="font-size:12px;color:#6b7280;">{_esc(r.email)}</div>
           </td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-variant-numeric:tabular-nums;color:#111827;">
-            {_fmt_tokens(r.consumed)}
+            {_fmt_cny(r.amount_total)}
           </td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-variant-numeric:tabular-nums;color:{color};font-weight:600;">
             {r.quota_pct:.1f}%
           </td>
-          <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;text-align:right;font-variant-numeric:tabular-nums;color:#6b7280;">
-            {_fmt_tokens(r.input_tokens)} / {_fmt_tokens(r.output_tokens)}
-          </td>
           <td style="padding:8px 10px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#374151;">
             {_esc(r.top_model)}
-            <span style="color:#9ca3af;">({_fmt_tokens(r.top_model_consumed)})</span>
+            <span style="color:#9ca3af;">({_fmt_cny(r.top_model_amount)})</span>
           </td>
         </tr>""")
 
@@ -185,7 +149,7 @@ def render_html(
         "".join(table_rows_html)
         if table_rows_html
         else (
-            '<tr><td colspan="5" style="padding:20px;text-align:center;color:#9ca3af;">'
+            '<tr><td colspan="4" style="padding:20px;text-align:center;color:#9ca3af;">'
             "本周期暂无用量数据</td></tr>"
         )
     )
@@ -198,22 +162,20 @@ def render_html(
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;">
     <tr><td align="center" style="padding:24px 12px;">
       <table role="presentation" width="720" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;box-shadow:0 1px 3px rgba(0,0,0,0.05);overflow:hidden;">
-        <!-- Header -->
         <tr><td style="padding:24px 28px;background:#1e3a8a;">
           <div style="font-size:18px;font-weight:600;color:#ffffff;">Trae Dashboard · 周期消耗日报</div>
           <div style="font-size:13px;color:#bfdbfe;margin-top:4px;">{now.strftime('%Y-%m-%d %H:%M')} UTC · 计费周期 {cycle_str}</div>
         </td></tr>
-        <!-- KPI strip -->
         <tr><td style="padding:20px 28px 8px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
             <tr>
               <td style="width:33%;padding-right:12px;">
                 <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">总消耗</div>
-                <div style="font-size:22px;font-weight:600;color:#111827;margin-top:2px;">{_fmt_tokens(total_consumed)}</div>
+                <div style="font-size:22px;font-weight:600;color:#111827;margin-top:2px;">{_fmt_cny(total_consumed)}</div>
               </td>
               <td style="width:33%;padding-right:12px;">
                 <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">总配额</div>
-                <div style="font-size:22px;font-weight:600;color:#111827;margin-top:2px;">{_fmt_tokens(total_quota)}</div>
+                <div style="font-size:22px;font-weight:600;color:#111827;margin-top:2px;">{_fmt_cny(total_quota)}</div>
               </td>
               <td style="width:33%;">
                 <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;">使用率</div>
@@ -222,7 +184,6 @@ def render_html(
             </tr>
           </table>
         </td></tr>
-        <!-- Table -->
         <tr><td style="padding:8px 20px 20px;">
           <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:14px;">
             <thead>
@@ -230,7 +191,6 @@ def render_html(
                 <th style="padding:10px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">账号</th>
                 <th style="padding:10px;text-align:right;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">总消耗</th>
                 <th style="padding:10px;text-align:right;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">配额占比</th>
-                <th style="padding:10px;text-align:right;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">Input / Output</th>
                 <th style="padding:10px;text-align:left;font-size:12px;color:#6b7280;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;border-bottom:1px solid #e5e7eb;">Top 模型</th>
               </tr>
             </thead>
@@ -238,7 +198,6 @@ def render_html(
             </tbody>
           </table>
         </td></tr>
-        <!-- Footer -->
         <tr><td style="padding:16px 28px;background:#f9fafb;border-top:1px solid #e5e7eb;">
           <div style="font-size:12px;color:#9ca3af;">
             本邮件由 Trae Dashboard 自动发送 · 数据采集自 Trae Enterprise OpenAPI
@@ -368,7 +327,7 @@ def run_report(
         "recipients": list(email_cfg.recipients),
         "recipient_count": len(email_cfg.recipients),
         "rows": len(rows),
-        "total_consumed": sum(r.consumed for r in rows),
+        "total_consumed": round(sum(r.amount_total for r in rows), 2),
         "subject": subject,
         "html": html if not send else None,
     }

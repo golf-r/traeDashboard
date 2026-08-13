@@ -571,8 +571,6 @@ main {
   border-radius: 2px;
   flex-shrink: 0;
 }
-.quota-bar__legend-swatch--in  { background: var(--color-input); }
-.quota-bar__legend-swatch--out { background: var(--color-output); }
 .quota-bar__legend-label {
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-medium);
@@ -718,21 +716,10 @@ main {
   top: 0;
   left: 0;
   bottom: 0;
-  display: flex;
+  background: var(--color-status-active);
   border-radius: var(--radius-pill);
   transition: width var(--transition-slow);
-  overflow: hidden;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
-}
-.quota-bar__fill-input {
-  height: 100%;
-  background: var(--color-input);
-  transition: width var(--transition-slow);
-}
-.quota-bar__fill-output {
-  height: 100%;
-  background: var(--color-output);
-  transition: width var(--transition-slow);
 }
 
 /* 80% 阈值刻度线 */

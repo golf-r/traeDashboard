@@ -134,18 +134,6 @@
           <div class="quota-bar__head">
             <div class="quota-bar__title">
               <span class="quota-bar__title-text">配额使用</span>
-              <span class="quota-bar__legend">
-                <span class="quota-bar__legend-item" data-tip="Input:模型接收的提示 token 数(写入越多消耗越快)" title="Input:模型接收的提示 token 数(写入越多消耗越快)">
-                  <span class="quota-bar__legend-swatch quota-bar__legend-swatch--in"></span>
-                  <span class="quota-bar__legend-label">Input</span>
-                  <span class="quota-bar__legend-val mono" id="quota-in-val">—</span>
-                </span>
-                <span class="quota-bar__legend-item" data-tip="Output:模型生成的回复 token 数(Input 的 3-10 倍价)" title="Output:模型生成的回复 token 数(Input 的 3-10 倍价)">
-                  <span class="quota-bar__legend-swatch quota-bar__legend-swatch--out"></span>
-                  <span class="quota-bar__legend-label">Output</span>
-                  <span class="quota-bar__legend-val mono" id="quota-out-val">—</span>
-                </span>
-              </span>
             </div>
 
             <div class="quota-bar__metrics">
@@ -177,10 +165,7 @@
             </div>
           </div>
           <div class="quota-bar__track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="quota-track">
-            <div class="quota-bar__fill" id="quota-fill" style="width: 0%;">
-              <div class="quota-bar__fill-input" id="quota-fill-input" style="width: 0%;"></div>
-              <div class="quota-bar__fill-output" id="quota-fill-output" style="width: 0%;"></div>
-            </div>
+            <div class="quota-bar__fill" id="quota-fill" style="width: 0%;"></div>
             <div class="quota-bar__threshold-marker" aria-hidden="true">
               <span class="quota-bar__threshold-tick" style="left: 80%;"></span>
               <span class="quota-bar__threshold-tick-label">80%</span>
@@ -251,13 +236,10 @@
             </div>
             <table id="account-table">
               <colgroup>
-                <col class="chk-col" />
-                <col class="num idx-col" style="width:36px" />
+                <col class="chk-col" style="width:36px" />
+                <col class="num idx-col" style="width:48px" />
                 <col style="width:200px" />
-                <col style="width:240px" />
-                <col class="num" style="width:88px" />
-                <col class="num" style="width:88px" />
-                <col class="num" style="width:96px" />
+                <col style="width:200px" />
                 <col class="num quota-col" style="width:150px" />
                 <col class="status-col" style="width:80px" />
               </colgroup>
@@ -267,19 +249,17 @@
                   <th class="sortable num idx-col" data-key="idx"     data-type="num">#<span class="sort-arrow"></span></th>
                   <th class="sortable"     data-key="name"    data-type="str">账号<span class="sort-arrow"></span></th>
                   <th class="sortable"     data-key="email"   data-type="str">邮箱<span class="sort-arrow"></span></th>
-                  <th class="sortable num" data-key="input"   data-type="num">Input<span class="sort-arrow"></span></th>
-                  <th class="sortable num" data-key="output"  data-type="num">Output<span class="sort-arrow"></span></th>
-                  <th class="sortable num" data-key="total"   data-type="num">消耗<span class="sort-arrow"></span></th>
+                  <th class="sortable num" data-key="total"   data-type="num">消耗(¥)<span class="sort-arrow"></span></th>
                   <th class="sortable num" data-key="quota"   data-type="num">配额使用率<span class="sort-arrow"></span></th>
                   <th class="status-col">状态</th>
                 </tr>
               </thead>
               <tbody id="tbody">
-                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
-                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
-                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
-                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
-                <tr class="is-skeleton"><td colspan="9">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="7">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="7">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="7">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="7">&nbsp;</td></tr>
+                <tr class="is-skeleton"><td colspan="7">&nbsp;</td></tr>
               </tbody>
             </table>
           </div>
@@ -375,15 +355,15 @@
       <div class="modal__body">
         <dl class="account-detail__grid">
           <dt>周期</dt>
-          <dd>每月 10 号 ~ 次月 9 号。跨日 0 点重置配额(从"已用"清零,"剩余"恢复 50M × 账号数)。</dd>
+          <dd>每月 10 号 ~ 次月 9 号。跨日 0 点重置配额(从"已用"清零,"剩余"恢复 120 元 × 账号数)。</dd>
           <dt>总账号数</dt>
-          <dd>本周期有上报数据(in / out tokens)的账号。"在用 / 静默"区分本周期内是否有消耗。</dd>
+          <dd>本周期有上报数据(有金额消耗)的账号。"在用 / 静默"区分本周期内是否有消耗。</dd>
           <dt>已消耗</dt>
-          <dd>本周期所有账号的 input + output token 之和。颜色按用量档位:&lt;70% 绿,70-90% 橙,≥90% 红,&gt;100% 红色闪烁。</dd>
+          <dd>本周期所有账号的金额消耗总和。颜色按用量档位:&lt;70% 绿,70-90% 橙,≥90% 红,&gt;100% 红色闪烁。</dd>
           <dt>剩余</dt>
           <dd>"总量 - 已消耗"。chip 显示"重置于 X 天 Y 时 Z 分 后"——距下次配额刷新。</dd>
           <dt>配额使用率</dt>
-          <dd>每账号的 consumed / 50M × 100%。&lt;70% 正常,70-90% 注意,90-100% 接近上限,&gt;100% 已超额。</dd>
+          <dd>每账号的 amount_total / 120.0 × 100%。&lt;70% 正常,70-90% 注意,90-100% 接近上限,&gt;100% 已超额。</dd>
           <dt>刷新按钮</dt>
           <dd>触发服务端同步拉取一次(POST /api/refresh),把所有账号的最新用量写到 SQLite。20 个账号串行,通常 5-15 秒。</dd>
           <dt>管理账号</dt>
@@ -588,30 +568,29 @@
       } else {
         html = '<div class="tooltip__title">模型消耗明细</div>' +
           '<div class="tooltip__table">' +
-            // 列头:让屏幕阅读器和视力用户都能分清三列含义
             '<div class="tooltip__table-head">' +
               '<span>模型</span>' +
-              '<span>Input</span>' +
-              '<span>消耗</span>' +
+              '<span>金额</span>' +
+              '<span>Tokens (in/out)</span>' +
             '</div>';
         models.forEach(function (m) {
           html +=
             '<span class="tooltip__model">' + escapeHtml(m.name || "?") + '</span>' +
-            '<span class="tooltip__num">in ' + App.formatTokens(m.input_tokens) + '</span>' +
-            '<span class="tooltip__num tooltip__num--total">' + App.formatTokens(m.consumed) + '</span>';
+            '<span class="tooltip__num tooltip__num--total">' + App.formatCNY(m.amount_total) + '</span>' +
+            '<span class="tooltip__num">' +
+              App.formatTokens(m.input_tokens) + ' / ' + App.formatTokens(m.output_tokens) +
+            '</span>';
         });
         html += "</div>";
       }
       tooltipEl.innerHTML = html;
       tooltipEl.hidden = false;
-      // Position after paint so we know the tooltip's own size.
       requestAnimationFrame(function () {
         const r = target.getBoundingClientRect();
         const tw = tooltipEl.offsetWidth;
         const th = tooltipEl.offsetHeight;
         let x = r.left + (r.width / 2) - (tw / 2);
         let y = r.bottom + 8;
-        // Clamp into viewport
         const vw = window.innerWidth;
         const vh = window.innerHeight;
         if (x < 8) x = 8;
@@ -698,14 +677,10 @@
     const quotaBar = document.getElementById("quota-bar");
     const quotaTrack = document.getElementById("quota-track");
     const quotaFill = document.getElementById("quota-fill");
-    const quotaFillInput = document.getElementById("quota-fill-input");
-    const quotaFillOutput = document.getElementById("quota-fill-output");
     const quotaPct = document.getElementById("quota-pct");
     const quotaUsedEl = document.getElementById("quota-used");
     const quotaTotalEl = document.getElementById("quota-total");
     const quotaRemainEl = document.getElementById("quota-remain");
-    const quotaInVal = document.getElementById("quota-in-val");
-    const quotaOutVal = document.getElementById("quota-out-val");
     const quotaThreshold = document.getElementById("quota-threshold");
     const quotaThresholdText = document.getElementById("quota-threshold-text");
     const resultCount = document.getElementById("result-count");
@@ -857,7 +832,7 @@
 
       // Consumed KPI
       const consumed = enriched.total_consumed || 0;
-      setKpi("consumed", App.formatTokens(consumed));
+      setKpi("consumed", App.formatCNY(consumed));
       const totalQuota = enriched.total_quota || 0;
       // 周期使用率 — 用于 KPI 副标题判断是否超额
       const cyclePct = totalQuota > 0 ? (consumed / totalQuota) * 100 : 0;
@@ -871,7 +846,7 @@
       } else if (totalQuota === 0) {
         setSub("consumed", "· 未配置月配额 · 仅展示消耗");
       } else {
-        setSub("consumed", "· 周期累计 · Input + Output");
+        setSub("consumed", "· 周期累计 · 金额");
       }
 
       // Remaining KPI:三档状态 — 正常 / warning(<20% 橙) / critical(<5% 红)
@@ -884,7 +859,7 @@
       } else if (remainingCard) {
         remainingCard.classList.remove("kpi-card--warning", "kpi-card--critical");
       }
-      setKpi("remaining", App.formatTokens(remaining));
+      setKpi("remaining", App.formatCNY(remaining));
       var nextResetStr = enriched.nextResetAt;
       const daysLeft = nextResetStr ? App.daysUntil(nextResetStr) : null;
       // 倒计时 chip 是唯一保留的重置信息源(sub line 里之前还有
@@ -923,45 +898,28 @@
     function paintQuotaBar(enriched) {
       const quota = enriched.total_quota || 0;
       const consumed = enriched.total_consumed || 0;
-      const inN = lastAccounts.reduce((s, a) => s + (a.input_tokens || 0), 0);
-      const outN = lastAccounts.reduce((s, a) => s + (a.output_tokens || 0), 0);
 
-      // P1-7: 配额为 0 时,不应显示"已用 100%"——这会让人误以为已超额。
-      // 强制把 bar 显示为 0%,并标"无配额"状态。
       let pct = 0;
       if (quota > 0) {
         pct = (consumed / quota) * 100;
       }
-      // quota === 0 时 pct = 0,bar 空,显示"未配置"提示
       const barPct = Math.min(100, Math.max(0, pct));
 
-      // input vs output share WITHIN the consumed portion
-      let inPct = 0, outPct = 0;
-      if (consumed > 0) {
-        inPct = (inN / consumed) * 100;
-        outPct = 100 - inPct;
-      }
-
-      // Apply widths (双段颜色:Input 蓝 / Output 紫)
+      // Single-color fill (amount-based, no Input/Output split).
       quotaFill.style.width = barPct.toFixed(2) + "%";
-      quotaFillInput.style.width = (consumed > 0 ? inPct : 0).toFixed(2) + "%";
-      quotaFillOutput.style.width = (consumed > 0 ? outPct : 0).toFixed(2) + "%";
 
-      // Accessibility
       quotaTrack.setAttribute("aria-valuenow", String(Math.round(barPct)));
       quotaTrack.setAttribute("aria-valuemin", "0");
       quotaTrack.setAttribute("aria-valuemax", "100");
-      // aria-valuetext:让屏幕阅读器读出"已用 X / 共 Y"而非只读百分比
       if (quota > 0) {
         quotaTrack.setAttribute(
           "aria-valuetext",
-          "已用 " + App.formatTokens(consumed) + " / 共 " + App.formatTokens(quota)
+          "已用 " + App.formatCNY(consumed) + " / 共 " + App.formatCNY(quota)
         );
       } else {
         quotaTrack.removeAttribute("aria-valuetext");
       }
 
-      // Color ramp — uses RAW pct (not clamped) so > 100% shows red
       let bucket = "zero";
       if (consumed === 0 || quota === 0) bucket = "zero";
       else if (pct >= 90) bucket = "high";
@@ -971,15 +929,12 @@
       quotaBar.setAttribute("data-over", pct > 100 ? "true" : "false");
       quotaPct.className = "quota-bar__metric-pct mono quota-bar__pct--" + bucket;
 
-      // 三段式文案:已用 / 总量 / 剩余
-      // P1-7: quota=0 时显示"无配额"而不是"100%"——避免用户误以为已超额
       const remain = Math.max(0, quota - consumed);
-      quotaUsedEl.textContent = App.formatTokens(consumed);
-      quotaTotalEl.textContent = quota > 0 ? App.formatTokens(quota) : "未配置";
-      quotaRemainEl.textContent = quota > 0 ? App.formatTokens(remain) : "—";
+      quotaUsedEl.textContent = App.formatCNY(consumed);
+      quotaTotalEl.textContent = quota > 0 ? App.formatCNY(quota) : "未配置";
+      quotaRemainEl.textContent = quota > 0 ? App.formatCNY(remain) : "—";
       quotaPct.textContent = quota > 0 ? App.formatPercent(pct, 1) : "—";
 
-      // 剩余指标颜色: 充足 / 偏紧 / 危急
       var remainMetric = quotaRemainEl.parentElement;
       remainMetric.classList.remove("quota-bar__metric--warn", "quota-bar__metric--critical");
       if (quota > 0) {
@@ -988,11 +943,6 @@
         else if (ratio < 0.3) remainMetric.classList.add("quota-bar__metric--warn");
       }
 
-      // Input / Output 图例数值
-      quotaInVal.textContent = App.formatTokens(inN);
-      quotaOutVal.textContent = App.formatTokens(outN);
-
-      // 阈值状态机:ok(0-80%) / warn(80-90%) / alert(90-100%+) / over(>100%)
       let thresholdState = "ok";
       let thresholdText = "阈值正常 · 80% 起提醒";
       if (quota > 0 && pct >= 100) {
@@ -1010,8 +960,6 @@
       }
       quotaThreshold.setAttribute("data-state", thresholdState);
       quotaThresholdText.textContent = thresholdText;
-      // 阈值图标:ok 用 info (i),warn/alert 用警告三角 — PM 视角下,
-      // 阈值正常时不该显示警告形 icon,以免造成"误报"印象
       var iconEl = document.getElementById("quota-threshold-icon");
       if (iconEl) {
         iconEl.innerHTML = thresholdState === "ok"
@@ -1035,23 +983,20 @@
 
     function decorateRows(accounts) {
       return accounts.map((a, i) => {
+        const amount = Number(a.amount_total) || 0;
         const inN = Number(a.input_tokens) || 0;
         const outN = Number(a.output_tokens) || 0;
-        const consumed = Number(a.consumed) || (inN + outN);
         const name = a.display_name || (a.email || "").split("@")[0] || "(未命名)";
-        const perQ = Number(a.per_account_quota) || 50_000_000;
+        const perQ = Number(a.per_account_quota) || 120.0;
         const quotaPct = Number(a.quota_used_pct) ||
-          (perQ > 0 ? (consumed / perQ) * 100 : 0);
-        // Per-model breakdown for the hover tooltip on the consumed cell.
-        // Backend returns the rows sorted by (input+output) desc, which is
-        // exactly the order we want to display them.
+          (perQ > 0 ? (amount / perQ) * 100 : 0);
         const models = Array.isArray(a.models) ? a.models : [];
         const tooltipLines = models.length
           ? models.map(function (m) {
               return m.name + ": " +
-                App.formatTokens(m.input_tokens) + " in / " +
-                App.formatTokens(m.output_tokens) + " out (" +
-                App.formatTokens(m.consumed) + ")";
+                App.formatCNY(m.amount_total) +
+                " (in " + App.formatTokens(m.input_tokens) +
+                " / out " + App.formatTokens(m.output_tokens) + ")";
             })
           : ["该账号本周期无模型用量"];
         return {
@@ -1060,12 +1005,12 @@
           _name: name,
           _input: inN,
           _output: outN,
-          _total: consumed,
+          _total: amount,
           _quotaPct: quotaPct,
           _quotaOver: quotaPct > 100,
           _quotaBucket: quotaPct >= 90 ? "high" : quotaPct > 70 ? "mid" : "low",
           _tooltip: tooltipLines.join("\n"),
-          _models: models, // structured data for the custom tooltip
+          _models: models,
         };
       });
     }
@@ -1119,7 +1064,7 @@
       if (!accounts.length) {
         if (resultCount) resultCount.textContent = "0 个账号";
         tbody.innerHTML =
-          '<tr><td colspan="9" class="empty-cell">' +
+          '<tr><td colspan="7" class="empty-cell">' +
             '<div class="empty-state">' +
               '<div class="empty-state__title">暂无数据</div>' +
               '<div class="empty-state__hint">点击下方按钮立即从 Trae OpenAPI 拉取一次数据，或运行 <code>python -m trae_dashboard fetch</code>。</div>' +
@@ -1159,7 +1104,7 @@
 
       if (!pageRows.length) {
         tbody.innerHTML =
-          '<tr><td colspan="9" class="empty-cell">' +
+          '<tr><td colspan="7" class="empty-cell">' +
             '<div class="empty-state empty-state--nomatch">' +
               '<div class="empty-state__icon" aria-hidden="true">' +
                 '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>' +
@@ -1201,9 +1146,7 @@
               '</div>' +
             '</td>' +
             '<td class="account-row__email mono" title="点击复制邮箱">' + escapeHtml(r.email) + '</td>' +
-            '<td class="num cell-in">' + App.formatTokens(r._input) + '</td>' +
-            '<td class="num cell-out">' + App.formatTokens(r._output) + '</td>' +
-            '<td class="num cell-total" tabindex="0" role="button" aria-label="' + escapeHtml(r._name) + ' 的模型消耗明细" data-models="' + escapeHtml(JSON.stringify(r._models || [])) + '"><strong>' + App.formatTokens(r._total) + '</strong></td>' +
+            '<td class="num cell-total" tabindex="0" role="button" aria-label="' + escapeHtml(r._name) + ' 的模型消耗明细" data-models="' + escapeHtml(JSON.stringify(r._models || [])) + '"><strong>' + App.formatCNY(r._total) + '</strong></td>' +
             '<td class="num quota-cell quota-cell--' + qBucket + (r._quotaOver ? ' quota-cell--over' : '') + '">' +
               '<div class="quota-mini-bar" role="progressbar" aria-valuenow="' + Math.round(qPct) + '" aria-valuemin="0" aria-valuemax="100">' +
                 '<div class="quota-mini-bar__fill" style="width:' + qBarW.toFixed(1) + '%"></div>' +
@@ -1317,7 +1260,7 @@
             errHint = "API 返回 403 · 请检查当前账号的访问凭证或联系管理员";
           }
           tbody.innerHTML =
-            '<tr><td colspan="9" class="empty-cell">' +
+            '<tr><td colspan="7" class="empty-cell">' +
               '<div class="empty-state empty-state--' + (isForbidden ? "forbidden" : "error") + '">' +
                 '<div class="empty-state__icon" aria-hidden="true">' +
                   (isForbidden
@@ -1524,20 +1467,18 @@
     document.getElementById("batch-export").addEventListener("click", function () {
       var checked = document.querySelectorAll("#tbody .row-chk:checked");
       if (!checked.length) return;
-      var rows = [["账号","邮箱","Input","Output","消耗","配额使用率","状态"]];
+      var rows = [["账号","邮箱","消耗(CNY)","配额使用率","状态"]];
       checked.forEach(function (cb) {
         var tr = cb.closest("tr");
         if (!tr) return;
         var cells = tr.querySelectorAll("td");
-        // 列顺序:chk(0)/idx(1)/name(2)/email(3)/input(4)/output(5)/total(6)/quota(7)/status(8)
+        // 列顺序:chk(0)/idx(1)/name(2)/email(3)/total(4)/quota(5)/status(6)
         rows.push([
           tr.getAttribute("data-name") || "",
           tr.getAttribute("data-email") || "",
           cells[4] ? cells[4].textContent.trim() : "",
           cells[5] ? cells[5].textContent.trim() : "",
           cells[6] ? cells[6].textContent.trim() : "",
-          cells[7] ? cells[7].textContent.trim() : "",
-          cells[8] ? cells[8].textContent.trim() : "",
         ]);
       });
       var csv = rows.map(function (r) { return r.map(function (c) { return '"' + c.replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
@@ -1553,7 +1494,7 @@
     var btnQuickExport = document.getElementById("btn-quick-export");
     if (btnQuickExport) {
       btnQuickExport.addEventListener("click", function () {
-        var allRows = [["账号","邮箱","Input","Output","消耗","配额使用率","状态"]];
+        var allRows = [["账号","邮箱","消耗(CNY)","配额使用率","状态"]];
         document.querySelectorAll("#tbody .account-row").forEach(function (tr) {
           var cells = tr.querySelectorAll("td");
           allRows.push([
@@ -1562,8 +1503,6 @@
             cells[4] ? cells[4].textContent.trim() : "",
             cells[5] ? cells[5].textContent.trim() : "",
             cells[6] ? cells[6].textContent.trim() : "",
-            cells[7] ? cells[7].textContent.trim() : "",
-            cells[8] ? cells[8].textContent.trim() : "",
           ]);
         });
         var csv = allRows.map(function (r) { return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(","); }).join("\n");
@@ -1572,7 +1511,7 @@
         var a = document.createElement("a");
         a.href = url; a.download = "trae-accounts-all.csv"; a.click();
         URL.revokeObjectURL(url);
-        App.showToast("已导出当前页 " + allRows.length - 1 + " 个账号", { variant: "success" });
+        App.showToast("已导出当前页 " + (allRows.length - 1) + " 个账号", { variant: "success" });
       });
     }
 
@@ -2282,7 +2221,7 @@
           var count = (result && result.recipient_count) || selected.length;
           var totalConsumed =
             result && typeof result.total_consumed === "number"
-              ? result.total_consumed
+              ? App.formatCNY(result.total_consumed)
               : null;
           var detail =
             totalConsumed !== null

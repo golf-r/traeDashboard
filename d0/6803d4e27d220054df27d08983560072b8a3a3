@@ -1,0 +1,35 @@
+tests/test_storage.py
+  s_964eda746b7a97::t_aadbab61f3f4e2 8
+src/trae_dashboard/storage.py
+  s_964eda746b7a97::t_bcd6d2c4678a5a 98-105,107
+  s_964eda746b7a97::t_d910d21e026ca0 311
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "d06803d4e27d220054df27d08983560072b8a3a3",
+  "prompts": {},
+  "sessions": {
+    "s_964eda746b7a97": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a54d678921e1b1e318c9dad",
+        "model": "glm-5.2"
+      },
+      "human_author": "shichenchen <shichenchen@huawei.com>",
+      "custom_attributes": {
+        "operation_id": "6a7d76c9c35358764ad9ec3b",
+        "tool_use_id": "6a7d76c9c35358764ad9ec3b",
+        "external_session_id": "6a54d678921e1b1e318c9dad",
+        "source_scene": "agent",
+        "tool_id": "icube:applyChatSnapshotPatch",
+        "tool_type": "builtin",
+        "client_type": "ide",
+        "edit_kind": "file_edit",
+        "dedupe_key": "6a54d678921e1b1e318c9dad:6a7d76c9c35358764ad9ec3b:afterEdit:40971147",
+        "runtime_client": "trae-tob-git-ai",
+        "session_id": "6a54d678921e1b1e318c9dad"
+      }
+    }
+  }
+}

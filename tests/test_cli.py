@@ -2,15 +2,12 @@
 from __future__ import annotations
 import pytest
 import sqlite3
-import subprocess
-import sys
 from pathlib import Path
 
 from trae_dashboard.cli import main, _build_parser
 
 
 def test_cli_help_exits_cleanly(capsys):
-    """Without args, argparse prints help to stderr and exits 2."""
     with pytest.raises(SystemExit) as exc:
         main([])
     assert exc.value.code == 2
@@ -23,10 +20,8 @@ def test_cli_help_exits_cleanly(capsys):
 
 def test_parser_lists_subcommands():
     parser = _build_parser()
-    # subparsers are optional in main; the parser accepts no args
     args = parser.parse_args([])
     assert args.cmd is None
-    # But individual subcommands work
     args = parser.parse_args(["init"])
     assert args.cmd == "init"
     args = parser.parse_args(["fetch", "--config", "x.yaml"])
@@ -54,13 +49,12 @@ def test_init_subcommand_does_not_overwrite(tmp_data_dir, monkeypatch):
     assert "from_user" in target.read_text(encoding="utf-8")
 
 
-def test_prune_command_removes_zero_data(tmp_data_dir, monkeypatch):
-    """`prune` should remove zero-data accounts and report stats."""
+def test_prune_command_removes_zero_amount_accounts(tmp_data_dir, monkeypatch):
+    """prune removes accounts whose amount_total is zero."""
     monkeypatch.chdir(tmp_data_dir)
     monkeypatch.setenv("TRAE_APP_ID", "test_id")
     monkeypatch.setenv("TRAE_APP_SECRET", "test_secret")
 
-    # Write config pointing at a DB in the temp dir.
     cfg = tmp_data_dir / "config.yaml"
     cfg.write_text(
         "openapi_base: x\nauth_endpoint: /a\n"
@@ -70,9 +64,7 @@ def test_prune_command_removes_zero_data(tmp_data_dir, monkeypatch):
         encoding="utf-8",
     )
 
-    # Pre-populate the DB directly: 1 real account + 2 zero-data accounts.
-    from trae_dashboard.storage import Storage  # noqa: E402
-
+    from trae_dashboard.storage import Storage
     db_path = tmp_data_dir / "data" / "dashboard.db"
     s = Storage(db_path)
     s.init()
@@ -80,20 +72,18 @@ def test_prune_command_removes_zero_data(tmp_data_dir, monkeypatch):
     s.upsert_account("zero1@x.com", "Zero1")
     s.upsert_account("zero2@x.com", "Zero2")
     s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
-    # Use a fixed cycle that matches "now" (cycle mode is the only mode now).
     from trae_dashboard.cycle import current_cycle_window
     s_dt, e_dt = current_cycle_window()
     s.upsert_model_usage(
         email="keep@x.com", cycle_start=s_dt.date().isoformat(),
         cycle_end=e_dt.date().isoformat(),
         model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=10, output_tokens=20,
+        amount_total=10.0,
     )
     s.close()
 
-    from io import StringIO  # noqa: E402
-    from contextlib import redirect_stdout  # noqa: E402
-
+    from io import StringIO
+    from contextlib import redirect_stdout
     buf = StringIO()
     with redirect_stdout(buf):
         main(["prune", "--config", str(cfg), "--keep-snapshots", "5"])
@@ -101,7 +91,6 @@ def test_prune_command_removes_zero_data(tmp_data_dir, monkeypatch):
     assert "deleted_accounts=2" in output
     assert "zero-data accounts: 2" in output
 
-    # Verify DB state.
     s2 = Storage(db_path)
     emails = {a.email for a in s2.list_accounts()}
     assert emails == {"keep@x.com"}
@@ -109,7 +98,6 @@ def test_prune_command_removes_zero_data(tmp_data_dir, monkeypatch):
 
 
 def test_prune_dry_run_does_not_delete(tmp_data_dir, monkeypatch):
-    """`prune --dry-run` should report counts but not mutate the DB."""
     monkeypatch.chdir(tmp_data_dir)
     monkeypatch.setenv("TRAE_APP_ID", "test_id")
     monkeypatch.setenv("TRAE_APP_SECRET", "test_secret")
@@ -123,8 +111,7 @@ def test_prune_dry_run_does_not_delete(tmp_data_dir, monkeypatch):
         encoding="utf-8",
     )
 
-    from trae_dashboard.storage import Storage  # noqa: E402
-
+    from trae_dashboard.storage import Storage
     db_path = tmp_data_dir / "data" / "dashboard.db"
     s = Storage(db_path)
     s.init()
@@ -136,13 +123,12 @@ def test_prune_dry_run_does_not_delete(tmp_data_dir, monkeypatch):
         email="zero@x.com", cycle_start=s_dt.date().isoformat(),
         cycle_end=e_dt.date().isoformat(),
         model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=0, output_tokens=0,
+        amount_total=0.0,
     )
     s.close()
 
-    from io import StringIO  # noqa: E402
-    from contextlib import redirect_stdout  # noqa: E402
-
+    from io import StringIO
+    from contextlib import redirect_stdout
     buf = StringIO()
     with redirect_stdout(buf):
         main(["prune", "--config", str(cfg), "--dry-run"])
@@ -150,7 +136,6 @@ def test_prune_dry_run_does_not_delete(tmp_data_dir, monkeypatch):
     assert "[dry-run]" in output
     assert "zero-data accounts: 1" in output
 
-    # DB should still have the account.
     s2 = Storage(db_path)
     emails = {a.email for a in s2.list_accounts()}
     assert "zero@x.com" in emails
@@ -158,12 +143,7 @@ def test_prune_dry_run_does_not_delete(tmp_data_dir, monkeypatch):
 
 
 def test_fetch_subcommand_writes_db(tmp_data_dir, monkeypatch):
-    """fetch creates SQLite with snapshots and model_usage rows.
-
-    The CLI builds its own TraeClient and POSTs to the configured endpoint.
-    We point it at an httpx.MockTransport (via monkeypatch on the client
-    class) so the test runs without network access.
-    """
+    """fetch creates SQLite with snapshots and model_usage rows."""
     import httpx
     from trae_dashboard.client import TraeClient
 
@@ -182,34 +162,27 @@ def test_fetch_subcommand_writes_db(tmp_data_dir, monkeypatch):
                 "data": {"items": [
                     {"email": "a@x.com", "model_usage": [
                         {"model_name": "GLM-5.1", "model_type": "Chat", "model_source": "Trae",
-                         "usage": {"input_tokens": 9, "output_tokens": 18}}
+                         "usage": {"input_tokens": 9, "output_tokens": 18},
+                         "amount": {"total_amount": 5.0}}
                     ]}
                 ]},
             },
         )
 
-    # Replace httpx.Client inside the TraeClient module so the CLI-built
-    # client uses our mock transport. Also overwrite the token manager's
-    # client reference — TokenManager captured self._client before the
-    # patch could replace it.
     orig_init = TraeClient.__init__
-
     def patched_init(self, **kwargs):
         orig_init(self, **kwargs)
         mock = httpx.Client(transport=httpx.MockTransport(handler))
         self._client = mock
         if getattr(self, "_tokens", None) is not None:
             self._tokens._client = mock
-
     monkeypatch.setattr(TraeClient, "__init__", patched_init)
 
-    # Write config
     target_cfg = tmp_data_dir / "config.yaml"
     target_cfg.write_text(
         "openapi_base: https://api.test\nauth_endpoint: /auth\n"
         "app_id_env: TRAE_APP_ID\napp_secret_env: TRAE_APP_SECRET\n"
         "db_path: data/dashboard.db\n"
-        "included_model_names:\n  - GLM-5.1\n"
         "accounts:\n  - email: a@x.com\n    display_name: A\n",
         encoding="utf-8",
     )

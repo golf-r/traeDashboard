@@ -42,6 +42,18 @@
     return (v < 10 ? v.toFixed(2) : v < 100 ? v.toFixed(1) : v.toFixed(0)) + "M";
   }
 
+  /**
+   * Format a CNY amount: 1234.5 -> "¥ 1,234.50".
+   * Used for all amount-based displays (KPI / quota bar / table / CSV).
+   */
+  function formatCNY(n) {
+    n = Number(n) || 0;
+    return "¥ " + n.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
   /** Format a number with thousands separators (en-US). */
   function formatInt(n) {
     n = Number(n) || 0;
@@ -409,7 +421,7 @@
    * @returns {string}
    */
   function consumedFmt(n) {
-    return formatTokens(n || 0);
+    return formatCNY(n || 0);
   }
 
   /**
@@ -468,20 +480,19 @@
   function normalizeAccount(row) {
     const input = Number(row.input_tokens != null ? row.input_tokens : row.total_in) || 0;
     const output = Number(row.output_tokens != null ? row.output_tokens : row.total_out) || 0;
-    const consumed = Number(
-      row.consumed != null ? row.consumed : input + output
-    ) || 0;
+    // amount_total is the authoritative CNY metric from the new API.
+    // Fall back to 0 when the backend doesn't provide it (legacy rows).
+    const amountTotal = Number(row.amount_total) || 0;
     return {
       email: row.email,
       display_name: row.display_name,
-      consumed: consumed,
+      // Primary metric (CNY) — used by KPI / quota bar / table.
+      amount_total: amountTotal,
+      // Token fields retained for the per-model tooltip breakdown only.
+      consumed: Number(row.consumed != null ? row.consumed : input + output) || 0,
       input_tokens: input,
       output_tokens: output,
       active_days: Number(row.active_days) || 0,
-      // Pass-through fields used by the per-account table:
-      //   - models: per-model breakdown for the consumed-cell tooltip
-      //   - per_account_quota / quota_used_pct / model_count: row chips
-      // Older backends may not return these; guard with defaults.
       models: Array.isArray(row.models) ? row.models : [],
       model_count: Number(row.model_count) || 0,
       per_account_quota: Number(row.per_account_quota) || 0,
@@ -511,16 +522,13 @@
    */
   function enrichStatus(status, accounts) {
     const accs = accounts || [];
-    const sumIn = accs.reduce((s, a) => s + (a.input_tokens || 0), 0);
-    const sumOut = accs.reduce((s, a) => s + (a.output_tokens || 0), 0);
-    const sumConsumed = accs.reduce((s, a) => s + (a.consumed || 0), 0);
+    const sumAmount = accs.reduce((s, a) => s + (a.amount_total || 0), 0);
     const accountsWithData = accs.filter(
-      (a) => (a.input_tokens || 0) > 0 || (a.output_tokens || 0) > 0
+      (a) => (a.amount_total || 0) > 0
     ).length;
 
-    const total_consumed = Number(status && status.total_consumed) || sumConsumed || sumIn + sumOut;
-    const per_account_quota = Number(status && status.per_account_quota) || 50_000_000;
-    // total_quota = per_account_quota * accounts_with_data (or status value)
+    const total_consumed = Number(status && status.total_consumed) || sumAmount;
+    const per_account_quota = Number(status && status.per_account_quota) || 120.0;
     const total_quota = Number(status && status.total_quota) ||
       per_account_quota * Math.max(accountsWithData, accs.length);
     const total_remaining = Number(status && status.total_remaining) ||
@@ -683,6 +691,7 @@
   global.App = {
     // formatting
     formatTokens,
+    formatCNY,
     formatInt,
     formatDate,
     formatTime,

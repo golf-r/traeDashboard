@@ -15,35 +15,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
-# Built-in default: official model allowlist. Configurable in config.yaml via
-# the `included_model_names` key. Strict API-name matching (no case folding,
-# no alias normalization).
-DEFAULT_INCLUDED_MODEL_NAMES: frozenset[str] = frozenset(
-    {
-        "GLM-5.1",
-        "GLM-5-Turbo",
-        "DeepSeek-V4-Pro",
-        "Doubao-Seed-Code",
-        "GLM-5V-Turbo",
-        "Doubao-Seed-2.1-Pro",
-        "Doubao-Seed-2.1-Turbo",
-        "Doubao-Seed-2.0-Code",
-        "GLM-5.2",
-        "GLM-5",
-        "GLM-4.7",
-        "MiniMax-M3",
-        "MiniMax-M2.7",
-        "Qwen3.7-Plus",
-        "Qwen3-Coder-Next",
-        "Kimi-K2.7-Code",
-        "Kimi-K2.6",
-        "Kimi-K2.5",
-        "DeepSeek-V4-Flash",
-        "DeepSeek-V3.2",
-    }
-)
-
-
 @dataclass
 class Account:
     email: str
@@ -80,109 +51,11 @@ class Config:
     accounts: list[Account] = field(default_factory=list)
     db_path: str = "data/dashboard.db"
     fetch_interval_minutes: int = 60
-    # Per-account monthly token quota. Company total = per_account_quota * accounts.
-    per_account_quota: int = 50_000_000
-    # Strict-match allowlist of official model names. Rows whose API
-    # model_name is not in this set are not persisted (collector) and not
-    # returned by storage reads.
-    included_model_names: set[str] = field(
-        default_factory=lambda: set(DEFAULT_INCLUDED_MODEL_NAMES)
-    )
-    # Map canonical model name -> list of API-side aliases that should be
-    # stored under the canonical name. Used when the Trae UI displays a
-    # name different from what the OpenAPI returns (e.g. the official UI
-    # shows "Doubao-Seed-Code" while the API returns "Doubao_1_6").
-    # Matching is case-insensitive.
-    model_aliases: dict[str, list[str]] = field(default_factory=dict)
-    # Display-time weights keyed by canonical model_name. Applied on read
-    # in storage so DB rows keep the raw API values (audit trail intact).
-    # Default matches the Trae admin UI's display for Doubao-Seed-Code
-    # (which shows 0.5x of the API value for the same cycle window).
-    display_weights: dict[str, float] = field(
-        default_factory=lambda: {"Doubao-Seed-Code": 0.5}
-    )
+    # Per-account monthly quota in CNY (amount-based, not token-based).
+    # Company total = per_account_quota * number of accounts.
+    per_account_quota: float = 120.0
     # Optional daily email report (SMTP). Disabled by default.
     email: EmailConfig = field(default_factory=EmailConfig)
-
-
-def _load_included_model_names(data: dict) -> set[str]:
-    """Parse and validate `included_model_names` from raw YAML data.
-
-    - Missing key → default to built-in official list.
-    - Present but not a list → RuntimeError.
-    - Item not a string, or empty/whitespace-only → RuntimeError.
-    - Duplicates collapse into a set; surrounding whitespace is stripped.
-    """
-    raw = data.get("included_model_names")
-    if raw is None:
-        return set(DEFAULT_INCLUDED_MODEL_NAMES)
-    if not isinstance(raw, list):
-        raise RuntimeError(
-            "included_model_names must be a YAML list of non-empty strings"
-        )
-    names: set[str] = set()
-    for item in raw:
-        if not isinstance(item, str) or not item.strip():
-            raise RuntimeError(
-                "included_model_names must be a YAML list of non-empty strings"
-            )
-        names.add(item.strip())
-    return names
-
-
-def _load_model_aliases(data: dict, allowlist: set[str]) -> dict[str, list[str]]:
-    """Parse `model_aliases` from raw YAML data.
-
-    Schema: a dict mapping canonical name -> list of API-side names.
-    Each canonical name must already be in the allowlist; each alias is
-    validated to be a non-empty string. Aliases themselves are NOT added
-    to the allowlist (they are only entry points for renaming).
-    """
-    raw = data.get("model_aliases")
-    if raw is None:
-        return {}
-    if not isinstance(raw, dict):
-        raise RuntimeError("model_aliases must be a YAML mapping")
-    out: dict[str, list[str]] = {}
-    for canonical, aliases in raw.items():
-        if canonical not in allowlist:
-            raise RuntimeError(
-                f"model_aliases: canonical '{canonical}' is not in "
-                f"included_model_names"
-            )
-        if not isinstance(aliases, list) or not all(
-            isinstance(a, str) and a.strip() for a in aliases
-        ):
-            raise RuntimeError(
-                f"model_aliases['{canonical}'] must be a list of non-empty strings"
-            )
-        out[canonical] = [a.strip() for a in aliases]
-    return out
-
-
-def _load_display_weights(data: dict) -> dict[str, float]:
-    """Parse optional `display_weights` mapping from YAML.
-
-    Schema: dict mapping canonical model_name -> float weight.
-    Each key must already be in `included_model_names` (validated by the
-    caller's allowlist, but here we only check shape). Weight must be
-    a positive number; 1.0 means "no adjustment".
-    """
-    raw = data.get("display_weights")
-    if raw is None:
-        return {"Doubao-Seed-Code": 0.5}
-    if not isinstance(raw, dict):
-        raise RuntimeError("display_weights must be a YAML mapping of {model_name: weight}")
-    out: dict[str, float] = {}
-    for name, w in raw.items():
-        if not isinstance(name, str) or not name.strip():
-            raise RuntimeError("display_weights keys must be non-empty strings")
-        if not isinstance(w, (int, float)) or w <= 0:
-            raise RuntimeError(
-                f"display_weights['{name}'] must be a positive number, got {w!r}"
-            )
-        out[name.strip()] = float(w)
-    return out
 
 
 def load_config(path: str | Path) -> Config:
@@ -226,9 +99,6 @@ def load_config(path: str | Path) -> Config:
                 f"Only /user-model-usage data endpoint is allowed; "
                 f"user-metrics is deprecated (found in config key '{key}')"
             )
-    # Parse allowlist once and reuse for both fields — avoids duplicate
-    # work AND keeps the two in sync if validation ever grows side effects.
-    included = _load_included_model_names(data)
     return Config(
         openapi_base=data["openapi_base"],
         auth_endpoint=data["auth_endpoint"],
@@ -237,15 +107,7 @@ def load_config(path: str | Path) -> Config:
         accounts=accounts,
         db_path=data.get("db_path", "data/dashboard.db"),
         fetch_interval_minutes=int(data.get("fetch_interval_minutes", 60)),
-        per_account_quota=int(
-            data.get(
-                "per_account_quota",
-                data.get("monthly_quota", 50_000_000),  # backward-compat
-            )
-        ),
-        included_model_names=included,
-        model_aliases=_load_model_aliases(data, included),
-        display_weights=_load_display_weights(data),
+        per_account_quota=float(data.get("per_account_quota", 120.0)),
         email=_load_email_config(data),
     )
 

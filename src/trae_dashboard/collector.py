@@ -1,19 +1,26 @@
-"""Collector: pulls token usage from Trae API and persists to SQLite.
+"""Collector: pulls model usage from Trae API and persists to SQLite.
 
 The Trae API returns totals for the requested cycle window without a
 per-day breakdown. We store ONE row per (email, cycle_start, model_name)
 in the ``model_usage`` table — no daily distribution, no rounding. The
 UNIQUE constraint on (email, cycle_start, model_name) means re-fetching
 the same cycle window overwrites the prior totals (no accumulation).
+
+Only models with model_source == "Trae" are persisted (Trae built-in
+models). Third-party models are skipped at the collector boundary so
+storage / API / report layers never see them.
 """
 
 from __future__ import annotations
 import json
+import logging
 
 from .client import TraeClient
 from .storage import Storage
 from .config import Config
 from .cycle import current_cycle_window
+
+log = logging.getLogger(__name__)
 
 
 class Collector:
@@ -27,17 +34,6 @@ class Collector:
         self._client = client
         self._storage = storage
         self._config = config
-        # Map lowercase API name -> canonical PascalCase name from the
-        # allowlist, plus explicit alias entries from
-        # `Config.model_aliases`. The lookup is case-insensitive: an API
-        # `model_name` of "Doubao_1_6" or "doubao_1_6" both map to the
-        # canonical "Doubao-Seed-Code" if the user configured that alias.
-        self._canonical: dict[str, str] = {
-            n.lower(): n for n in self._config.included_model_names
-        }
-        for canonical, aliases in self._config.model_aliases.items():
-            for alias in aliases:
-                self._canonical[alias.lower()] = canonical
 
     def run_once(self) -> dict:
         """Run one fetch + persist cycle.
@@ -80,24 +76,33 @@ class Collector:
             if not email:
                 continue
             for mu in item.get("model_usage", []):
-                raw_name = mu.get("model_name") or "unknown"
-                # Case-insensitive match: API returns lowercase/camelCase
-                # (e.g. "glm-5.1"), config holds the canonical PascalCase
-                # name (e.g. "GLM-5.1"). Look up the canonical name and
-                # store under it so the DB has consistent keys.
-                canonical = self._canonical.get(raw_name.lower())
-                if canonical is None:
+                # Only persist Trae built-in models.
+                if mu.get("model_source") != "Trae":
                     continue
+                raw_name = mu.get("model_name") or "unknown"
                 u = mu.get("usage", {}) or {}
+                amt = mu.get("amount", {}) or {}
+                try:
+                    amount_total = float(amt.get("total_amount", 0) or 0)
+                    amount_basic = float(amt.get("basic_amount", 0) or 0)
+                    amount_pay_go = float(amt.get("pay_go_amount", 0) or 0)
+                except (TypeError, ValueError) as e:
+                    log.warning("Bad amount for %s/%s: %s", email, raw_name, e)
+                    continue
+                currency = amt.get("currency", "CNY") or "CNY"
                 self._storage.upsert_model_usage(
                     email=email,
                     cycle_start=start_date,
                     cycle_end=end_date,
-                    model_name=canonical,
+                    model_name=raw_name,
                     model_type=mu.get("model_type"),
                     model_source=mu.get("model_source"),
-                    input_tokens=int(u.get("input_tokens", 0)),
-                    output_tokens=int(u.get("output_tokens", 0)),
+                    input_tokens=int(u.get("input_tokens", 0) or 0),
+                    output_tokens=int(u.get("output_tokens", 0) or 0),
+                    amount_total=amount_total,
+                    amount_basic=amount_basic,
+                    amount_pay_go=amount_pay_go,
+                    currency=currency,
                 )
 
         return {

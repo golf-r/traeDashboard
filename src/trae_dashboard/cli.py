@@ -118,7 +118,7 @@ def _init(config_path: Path) -> None:
 
 def _fetch(config_path: Path) -> None:
     cfg = load_config(config_path)
-    storage = Storage(cfg.db_path, display_weights=cfg.display_weights)
+    storage = Storage(cfg.db_path)
     storage.init()
     for a in cfg.accounts:
         storage.upsert_account(a.email, a.display_name)
@@ -154,12 +154,12 @@ def _prune(config_path: Path, *, keep_snapshots: int, dry_run: bool) -> None:
     """Clean up the SQLite DB.
 
     Operations (in order):
-      1. Delete accounts whose model_usage totals are zero.
+      1. Delete accounts whose model_usage amount_total totals are zero.
       2. Delete orphan model_usage rows (email no longer in accounts).
       3. Keep only the most recent ``keep_snapshots`` snapshots.
     """
     cfg = load_config(config_path)
-    storage = Storage(cfg.db_path, display_weights=cfg.display_weights)
+    storage = Storage(cfg.db_path)
     storage.init()
     try:
         if dry_run:
@@ -169,16 +169,9 @@ def _prune(config_path: Path, *, keep_snapshots: int, dry_run: bool) -> None:
             rows = storage.get_model_usage_by_account(
                 s_dt.date().isoformat(),
                 e_dt.date().isoformat(),
-                cfg.included_model_names,
             )
-            n_zero = sum(
-                1
-                for r in rows
-                if (r["input_tokens"] or 0) == 0 and (r["output_tokens"] or 0) == 0
-            )
-            n_snap = storage.conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[
-                0
-            ]
+            n_zero = sum(1 for r in rows if (r["amount_total"] or 0) == 0)
+            n_snap = storage.conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
             n_orphan = storage.conn.execute(
                 "SELECT COUNT(*) FROM model_usage m "
                 "WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.email = m.email)"
@@ -211,17 +204,13 @@ def _prune(config_path: Path, *, keep_snapshots: int, dry_run: bool) -> None:
 
 
 def _report(config_path: Path, *, dry_run: bool = False) -> None:
-    """Render and (optionally) send the daily email report.
-
-    `--dry-run` prints the HTML body to stdout instead of sending mail,
-    so you can preview the layout before wiring up SMTP credentials.
-    """
+    """Render and (optionally) send the daily email report."""
     from .report import collect_report_rows, render_html
     from .cycle import current_cycle_window
     from datetime import datetime, timezone
 
     cfg = load_config(config_path)
-    storage = Storage(cfg.db_path, display_weights=cfg.display_weights)
+    storage = Storage(cfg.db_path)
     storage.init()
     try:
         rows = collect_report_rows(storage, cfg)
@@ -236,7 +225,7 @@ def _report(config_path: Path, *, dry_run: bool = False) -> None:
                 f"Recipients: {cfg.email.recipients or '(none — email not configured)'}"
             )
             print(f"Rows: {len(rows)}")
-            print(f"Total consumed: {sum(r.consumed for r in rows):,}")
+            print(f"Total consumed: ¥ {sum(r.amount_total for r in rows):.2f}")
             print("-" * 60)
             print(html)
             return
@@ -250,12 +239,11 @@ def _report(config_path: Path, *, dry_run: bool = False) -> None:
             raise SystemExit(1)
 
         from .report import run_report
-
         summary = run_report(storage, cfg)
         print(
             f"sent: recipients={summary['recipient_count']} "
             f"rows={summary['rows']} "
-            f"total_consumed={summary['total_consumed']:,} "
+            f"total_consumed=¥ {summary['total_consumed']:.2f} "
             f"subject={summary['subject']!r}"
         )
     finally:

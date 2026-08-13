@@ -230,24 +230,12 @@ def create_app(
         cycle_end_dt = next_cycle_reset()
         start_date = start_dt.date().isoformat()
         end_date = cycle_end_dt.date().isoformat()
-        rows = storage.get_model_usage_by_account(
-            start_date, end_date, cfg.included_model_names
-        )
-        total_consumed = sum(
-            (r["input_tokens"] or 0) + (r["output_tokens"] or 0) for r in rows
-        )
+        rows = storage.get_model_usage_by_account(start_date, end_date)
+        total_consumed = storage.get_total_amount(start_date)
         accounts_with_data = sum(
-            1 for r in rows
-            if (r["input_tokens"] or 0) > 0 or (r["output_tokens"] or 0) > 0
+            1 for r in rows if (r["amount_total"] or 0) > 0
         )
         per_account_quota = cfg.per_account_quota
-        # Quota is bought per account, not per account-with-data. Even an
-        # account that hasn't consumed anything this cycle still occupies
-        # a quota slot. So total_quota = per_account_quota × all_accounts.
-        # (Previously this used max(accounts_with_data, len(rows)) which
-        #  always collapsed to len(rows) — a dead max — AND excluded
-        #  zero-consumption accounts from the denominator, which inflated
-        #  utilization_pct. The new formula matches the billing reality.)
         total_accounts_for_quota = len(rows)
         total_quota = per_account_quota * total_accounts_for_quota
         total_remaining = max(0, total_quota - total_consumed)
@@ -293,24 +281,22 @@ def create_app(
         start_dt, end_dt = current_cycle_window()
         start_date = start_dt.date().isoformat()
         end_date = end_dt.date().isoformat()
-        rows = storage.get_model_usage_by_account(
-            start_date, end_date, cfg.included_model_names
-        )
+        rows = storage.get_model_usage_by_account(start_date, end_date)
         per_q = cfg.per_account_quota
         result = []
         for r in rows:
-            consumed = (r["input_tokens"] or 0) + (r["output_tokens"] or 0)
-            quota_pct = round((consumed / per_q) * 100, 2) if per_q > 0 else 0.0
+            amount = float(r["amount_total"] or 0)
+            quota_pct = round((amount / per_q) * 100, 2) if per_q > 0 else 0.0
             # Per-model breakdown for the tooltip
-            models_rows = storage.get_model_usage_for_account(
-                r["email"], start_date, cfg.included_model_names
-            )
+            models_rows = storage.get_model_usage_for_account(r["email"], start_date)
             models = [
                 {
                     "name": m.model_name,
                     "input_tokens": m.input_tokens,
                     "output_tokens": m.output_tokens,
-                    "consumed": m.input_tokens + m.output_tokens,
+                    "amount_total": m.amount_total,
+                    "amount_basic": m.amount_basic,
+                    "amount_pay_go": m.amount_pay_go,
                 }
                 for m in models_rows
             ]
@@ -318,7 +304,7 @@ def create_app(
                 {
                     "email": r["email"],
                     "display_name": r["display_name"],
-                    "consumed": consumed,
+                    "amount_total": amount,
                     "input_tokens": r["input_tokens"] or 0,
                     "output_tokens": r["output_tokens"] or 0,
                     "model_count": r["model_count"] or 0,
@@ -429,9 +415,7 @@ def create_app(
         """Per-model breakdown for one account in the current cycle."""
         start_dt, _ = current_cycle_window()
         cycle_start = start_dt.date().isoformat()
-        rows = storage.get_model_usage_for_account(
-            email, cycle_start, cfg.included_model_names
-        )
+        rows = storage.get_model_usage_for_account(email, cycle_start)
         return [
             {
                 "cycle_start": r.cycle_start,
@@ -441,6 +425,10 @@ def create_app(
                 "model_source": r.model_source,
                 "input_tokens": r.input_tokens,
                 "output_tokens": r.output_tokens,
+                "amount_total": r.amount_total,
+                "amount_basic": r.amount_basic,
+                "amount_pay_go": r.amount_pay_go,
+                "currency": r.currency,
             }
             for r in rows
         ]

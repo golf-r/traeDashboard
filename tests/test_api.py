@@ -13,439 +13,117 @@ from trae_dashboard.storage import Storage
 from trae_dashboard.config import Config, Account, EmailConfig
 
 
-def test_api_accounts_summary(tmp_data_dir):
+def _cfg(**kw) -> Config:
+    defaults = dict(openapi_base="x", auth_endpoint="/auth", app_id="i", app_secret="s", accounts=[])
+    defaults.update(kw)
+    return Config(**defaults)
+
+
+def _seed_cycle(storage: Storage, email: str, *, amount_total=0.0, amount_basic=0.0, amount_pay_go=0.0, currency="CNY", input_tokens=0, output_tokens=0, model_name="M"):
+    from trae_dashboard.cycle import current_cycle_window
+    s_dt, e_dt = current_cycle_window()
+    storage.upsert_account(email, email.split("@")[0])
+    storage.upsert_model_usage(
+        email=email, cycle_start=s_dt.date().isoformat(), cycle_end=e_dt.date().isoformat(),
+        model_name=model_name, model_type="Chat", model_source="Trae",
+        input_tokens=input_tokens, output_tokens=output_tokens,
+        amount_total=amount_total, amount_basic=amount_basic, amount_pay_go=amount_pay_go,
+        currency=currency,
+    )
+
+
+def test_api_accounts_returns_amount(tmp_data_dir):
     db = tmp_data_dir / "test.db"
     s = Storage(db)
     s.init()
-    s.upsert_account("a@x.com", "A")
-    s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
-    # Seed model_usage for current cycle.
-    from trae_dashboard.cycle import current_cycle_window
-    s_dt, e_dt = current_cycle_window()
-    s.upsert_model_usage(
-        email="a@x.com", cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=10, output_tokens=20,
-    )
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s",
-        accounts=[Account("a@x.com", "A")],
-        included_model_names={"M"},
-    )
+    _seed_cycle(s, "a@x.com", amount_total=50.0, amount_basic=4.0, amount_pay_go=1.0, input_tokens=10, output_tokens=20)
+    cfg = _cfg(accounts=[Account("a@x.com", "A")], per_account_quota=120.0)
     app = create_app(cfg=cfg, storage=s)
     with TestClient(app) as client:
         r = client.get("/api/accounts")
         assert r.status_code == 200
         data = r.json()
-        assert len(data) == 1
-        assert data[0]["email"] == "a@x.com"
-        assert data[0]["input_tokens"] == 10
-        assert data[0]["output_tokens"] == 20
-        assert data[0]["consumed"] == 30
+    assert len(data) == 1
+    assert data[0]["email"] == "a@x.com"
+    assert data[0]["amount_total"] == pytest.approx(50.0)
+    assert data[0]["per_account_quota"] == 120.0
+    assert data[0]["quota_used_pct"] == pytest.approx(41.67, abs=0.01)
+    # per-model breakdown includes amount_total
+    assert data[0]["models"][0]["amount_total"] == pytest.approx(50.0)
+    assert data[0]["models"][0]["amount_basic"] == pytest.approx(4.0)
+    assert data[0]["models"][0]["amount_pay_go"] == pytest.approx(1.0)
 
 
-def test_api_account_history(tmp_data_dir):
+def test_api_account_history_returns_amount(tmp_data_dir):
     db = tmp_data_dir / "test.db"
     s = Storage(db)
     s.init()
-    s.upsert_account("a@x.com")
-    s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s",
-        accounts=[Account("a@x.com")],
-    )
+    _seed_cycle(s, "a@x.com", amount_total=30.0, amount_basic=20.0, amount_pay_go=10.0, currency="CNY")
+    cfg = _cfg(accounts=[Account("a@x.com")])
     app = create_app(cfg=cfg, storage=s)
     with TestClient(app) as client:
         r = client.get("/api/accounts/a@x.com/history")
         assert r.status_code == 200
         items = r.json()
-        # No model_usage row yet — empty list.
-        assert items == []
+    assert len(items) == 1
+    assert items[0]["amount_total"] == pytest.approx(30.0)
+    assert items[0]["amount_basic"] == pytest.approx(20.0)
+    assert items[0]["amount_pay_go"] == pytest.approx(10.0)
+    assert items[0]["currency"] == "CNY"
 
 
 def test_api_health(tmp_data_dir):
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
+    s = Storage(tmp_data_dir / "test.db")
     s.init()
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s", accounts=[],
-    )
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
     with TestClient(app) as client:
         r = client.get("/api/health")
         assert r.status_code == 200
-        body = r.json()
-        assert body["ok"] is True
+        assert r.json()["ok"] is True
 
 
-def test_api_accounts_default_days(tmp_data_dir):
-    """Default days param should be 30."""
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
+def test_api_status_returns_amount_fields(tmp_data_dir):
+    s = Storage(tmp_data_dir / "test.db")
     s.init()
-    s.upsert_account("a@x.com")
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s", accounts=[Account("a@x.com")],
-        included_model_names={"M"},
-    )
-    app = create_app(cfg=cfg, storage=s)
-    with TestClient(app) as client:
-        r = client.get("/api/accounts")
-        assert r.status_code == 200
-        # shape is a list
-        assert isinstance(r.json(), list)
-
-
-# ---------------------------------------------------------------------------
-# /api/status endpoint (T2)
-# ---------------------------------------------------------------------------
-
-
-def test_api_status_returns_expected_fields(tmp_data_dir):
-    """/api/status returns health + data freshness indicator.
-
-    Note: we deliberately do NOT expose `db_path` — it leaks an absolute
-    filesystem path to the frontend and is unused there. Removed in the
-    information-leak fix pass.
-    """
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
-    s.init()
-    s.upsert_account("a@x.com", "A")
-    # No snapshots yet → last_fetched_at / seconds_since_fetch are None
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s", accounts=[Account("a@x.com")],
-        included_model_names={"M"},
-    )
+    s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
+    _seed_cycle(s, "a@x.com", amount_total=50.0)
+    cfg = _cfg(accounts=[Account("a@x.com")], per_account_quota=120.0)
     app = create_app(cfg=cfg, storage=s)
     with TestClient(app) as client:
         r = client.get("/api/status")
         assert r.status_code == 200, r.text
         body = r.json()
-    for key in (
-        "ok", "last_fetched_at", "seconds_since_fetch",
-        "total_accounts", "accounts_with_data",
-        "total_quota", "total_consumed", "total_remaining",
-    ):
-        assert key in body, f"missing key {key} in {body}"
-    # db_path must NOT be present — it leaks a filesystem path.
+    for key in ("ok", "last_fetched_at", "seconds_since_fetch",
+                "total_accounts", "accounts_with_data",
+                "total_quota", "total_consumed", "total_remaining", "utilization_pct"):
+        assert key in body
+    for key in ("cycle_start", "cycle_end", "nextResetAt", "per_account_quota"):
+        assert key in body, f"missing key {key}"
     assert "db_path" not in body
-    assert body["ok"] is True
-    assert body["last_fetched_at"] is None
-    assert body["seconds_since_fetch"] is None
-    assert body["total_accounts"] == 1
-    assert body["accounts_with_data"] == 0
-
-
-def test_api_status_reports_recent_snapshot(tmp_data_dir):
-    """After saving a snapshot, /api/status reports last_fetched_at + age."""
-    from trae_dashboard.cycle import current_cycle_window
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
-    s.init()
-    s.upsert_account("a@x.com")
-    s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
-    s_dt, e_dt = current_cycle_window()
-    s.upsert_model_usage(
-        email="a@x.com",
-        cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=10, output_tokens=20,
-    )
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s", accounts=[Account("a@x.com")],
-        included_model_names={"M"},
-    )
-    app = create_app(cfg=cfg, storage=s)
-    with TestClient(app) as client:
-        r = client.get("/api/status")
-        assert r.status_code == 200
-        body = r.json()
-    assert body["last_fetched_at"] is not None
-    assert body["seconds_since_fetch"] is not None
-    assert body["seconds_since_fetch"] >= 0
     assert body["total_accounts"] == 1
     assert body["accounts_with_data"] == 1
+    assert body["total_consumed"] == pytest.approx(50.0)
+    assert body["total_quota"] == pytest.approx(120.0)
+    assert body["total_remaining"] == pytest.approx(70.0)
+    assert body["utilization_pct"] == pytest.approx(41.67, abs=0.01)
 
 
-def test_api_status_counts_only_accounts_with_real_tokens(tmp_data_dir):
-    """accounts_with_data excludes zero-token accounts."""
-    from trae_dashboard.cycle import current_cycle_window
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
+def test_api_status_excludes_zero_amount_accounts(tmp_data_dir):
+    """accounts_with_data excludes zero-amount accounts."""
+    s = Storage(tmp_data_dir / "test.db")
     s.init()
-    s.upsert_account("real@x.com", "Real")
-    s.upsert_account("zero@x.com", "Zero")
     s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
-    s_dt, e_dt = current_cycle_window()
-    s.upsert_model_usage(
-        email="real@x.com", cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=10, output_tokens=20,
-    )
-    # zero@x.com has a model row but with 0 tokens
-    s.upsert_model_usage(
-        email="zero@x.com", cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=0, output_tokens=0,
-    )
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s",
-        accounts=[Account("real@x.com"), Account("zero@x.com")],
-        included_model_names={"M"},
-    )
+    _seed_cycle(s, "real@x.com", amount_total=50.0)
+    _seed_cycle(s, "zero@x.com", amount_total=0.0, input_tokens=10, output_tokens=20)
+    cfg = _cfg(accounts=[Account("real@x.com"), Account("zero@x.com")], per_account_quota=120.0)
     app = create_app(cfg=cfg, storage=s)
     with TestClient(app) as client:
         r = client.get("/api/status")
         body = r.json()
     assert body["total_accounts"] == 2
     assert body["accounts_with_data"] == 1
-
-
-# ---------------------------------------------------------------------------
-# /api/status cycle fields (T5)
-# ---------------------------------------------------------------------------
-
-
-def _make_config(per_account_quota=50_000_000, included_model_names=None):
-    """Default helper: include the canonical "M" model used across most tests.
-
-    Pass an explicit `included_model_names` to override (e.g. for
-    allowlist-filter tests).
-    """
-    if included_model_names is None:
-        included_model_names = {"M"}
-    return Config(
-        openapi_base="x",
-        auth_endpoint="/auth",
-        app_id="i",
-        app_secret="s",
-        accounts=[Account("a@x.com", "A")],
-        per_account_quota=per_account_quota,
-        included_model_names=included_model_names,
-    )
-
-
-def test_api_status_returns_cycle_info(tmp_data_dir):
-    """`/api/status` includes cycle_start / cycle_end / per_account_quota / total_quota."""
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
-    s.init()
-    s.upsert_account("a@x.com", "A")
-    app = create_app(cfg=_make_config(per_account_quota=50_000_000), storage=s)
-    with TestClient(app) as client:
-        r = client.get("/api/status")
-        assert r.status_code == 200
-        body = r.json()
-    for key in (
-        "cycle_start", "cycle_end", "per_account_quota", "total_quota",
-        "total_consumed", "total_remaining", "utilization_pct",
-    ):
-        assert key in body, f"missing key {key} in {body}"
-    assert body["cycle_start"].startswith("20")
-    assert "T" in body["cycle_start"]
-    assert body["per_account_quota"] == 50_000_000
-    # 1 account with data → total_quota = 50M * 1
-    assert body["total_quota"] == 50_000_000
-
-
-def test_api_status_calculates_consumed_and_remaining(tmp_data_dir):
-    """total_consumed = sum(input+output) in cycle, remaining = quota - consumed (clamped >=0)."""
-    from datetime import datetime, timezone
-    from trae_dashboard.cycle import current_cycle_window
-
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
-    s.init()
-    s.upsert_account("a@x.com", "A")
-    s.upsert_account("b@x.com", "B")
-    s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
-    s_dt, e_dt = current_cycle_window()
-    cycle_start = s_dt.date().isoformat()
-    cycle_end = e_dt.date().isoformat()
-    s.upsert_model_usage(
-        email="a@x.com", cycle_start=cycle_start, cycle_end=cycle_end,
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=100, output_tokens=200,
-    )
-    s.upsert_model_usage(
-        email="b@x.com", cycle_start=cycle_start, cycle_end=cycle_end,
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=50, output_tokens=25,
-    )
-
-    app = create_app(cfg=_make_config(per_account_quota=10_000), storage=s)
-    with TestClient(app) as client:
-        r = client.get("/api/status")
-        body = r.json()
-
-    # Total consumed = (100+200) + (50+25) = 375
-    assert body["total_consumed"] == 375
-    # per_account_quota=10000, 2 accounts with data → total_quota = 20000
-    assert body["total_quota"] == 20_000
-    # remaining = 20000 - 375 = 19625 (not clamped)
-    assert body["total_remaining"] == 19_625
-    # utilization_pct = round(375 / 20000 * 100, 2) = 1.88
-    assert body["utilization_pct"] == 1.88
-    assert body["accounts_with_data"] == 2
-
-
-def test_api_status_remaining_clamped_to_zero(tmp_data_dir):
-    """When consumed > quota, remaining is clamped to 0 (not negative)."""
-    from trae_dashboard.cycle import current_cycle_window
-
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
-    s.init()
-    s.upsert_account("a@x.com", "A")
-    s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
-    s_dt, e_dt = current_cycle_window()
-    s.upsert_model_usage(
-        email="a@x.com", cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=9_000_000, output_tokens=1_000_000,
-    )
-    app = create_app(cfg=_make_config(per_account_quota=1_000_000), storage=s)
-    with TestClient(app) as client:
-        body = client.get("/api/status").json()
-    assert body["total_consumed"] == 10_000_000
-    assert body["total_quota"] == 1_000_000
-    assert body["total_remaining"] == 0
-    assert body["utilization_pct"] == 1000.0
-
-
-# ---------------------------------------------------------------------------
-# /api/accounts?cycle=true (T5.2)
-# ---------------------------------------------------------------------------
-
-
-def test_api_accounts_with_cycle_param(tmp_data_dir):
-    """`/api/accounts?cycle=true` returns per-account consumed in the cycle."""
-    from trae_dashboard.cycle import current_cycle_window
-
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
-    s.init()
-    s.upsert_account("a@x.com", "Alpha")
-    s.upsert_account("b@x.com", "Beta")
-    s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="x")
-    s_dt, e_dt = current_cycle_window()
-    s.upsert_model_usage(
-        email="a@x.com", cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=100, output_tokens=50,
-    )
-    s.upsert_model_usage(
-        email="b@x.com", cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="M", model_type="Chat", model_source="Trae",
-        input_tokens=20, output_tokens=10,
-    )
-
-    app = create_app(cfg=_make_config(), storage=s)
-    with TestClient(app) as client:
-        r = client.get("/api/accounts?cycle=true")
-        assert r.status_code == 200
-        data = r.json()
-    by_email = {row["email"]: row for row in data}
-    # Shape: each row has consumed, input_tokens, output_tokens, etc.
-    assert by_email["a@x.com"]["consumed"] == 150
-    assert by_email["a@x.com"]["input_tokens"] == 100
-    assert by_email["a@x.com"]["output_tokens"] == 50
-    assert by_email["b@x.com"]["consumed"] == 30
-
-
-# Legacy ?days= path was removed in cleanup; /api/accounts now only returns
-# the per-cycle model_usage totals. No days= variant is supported.
-
-
-# ---------------------------------------------------------------------------
-# /api/accounts honors Config.included_model_names (allowlist)
-# ---------------------------------------------------------------------------
-
-
-def test_api_accounts_uses_configured_model_allowlist(tmp_data_dir):
-    """Legacy non-allowlisted rows are ignored by /api/accounts."""
-    from trae_dashboard.cycle import current_cycle_window
-
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
-    s.init()
-    s.upsert_account("a@x.com", "Alpha")
-    s_dt, e_dt = current_cycle_window()
-    s.upsert_model_usage(
-        email="a@x.com", cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="AllowedModel", model_type="Chat", model_source="Trae",
-        input_tokens=10, output_tokens=20,
-    )
-    s.upsert_model_usage(
-        email="a@x.com", cycle_start=s_dt.date().isoformat(),
-        cycle_end=e_dt.date().isoformat(),
-        model_name="OtherModel", model_type="Chat", model_source="Trae",
-        input_tokens=100, output_tokens=200,
-    )
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s",
-        accounts=[Account("a@x.com", "Alpha")],
-        included_model_names={"AllowedModel"},
-    )
-    app = create_app(cfg=cfg, storage=s)
-
-    with TestClient(app) as client:
-        data = client.get("/api/accounts").json()
-
-    assert data[0]["input_tokens"] == 10
-    assert data[0]["output_tokens"] == 20
-    assert data[0]["model_count"] == 1
-
-
-def test_api_account_history_uses_configured_model_allowlist(tmp_data_dir):
-    """Legacy non-allowlisted rows are ignored by /api/accounts/{email}/history."""
-    from trae_dashboard.cycle import current_cycle_window
-
-    db = tmp_data_dir / "test.db"
-    s = Storage(db)
-    s.init()
-    s.upsert_account("a@x.com", "Alpha")
-    s_dt, _ = current_cycle_window()
-    cycle_start = s_dt.date().isoformat()
-    s.upsert_model_usage(
-        email="a@x.com", cycle_start=cycle_start, cycle_end="2026-06-29",
-        model_name="AllowedModel", model_type="Chat", model_source="Trae",
-        input_tokens=10, output_tokens=20,
-    )
-    s.upsert_model_usage(
-        email="a@x.com", cycle_start=cycle_start, cycle_end="2026-06-29",
-        model_name="OtherModel", model_type="Chat", model_source="Trae",
-        input_tokens=100, output_tokens=200,
-    )
-    cfg = Config(
-        openapi_base="x", auth_endpoint="/auth",
-        app_id="i", app_secret="s",
-        accounts=[Account("a@x.com", "Alpha")],
-        included_model_names={"AllowedModel"},
-    )
-    app = create_app(cfg=cfg, storage=s)
-
-    with TestClient(app) as client:
-        items = client.get("/api/accounts/a@x.com/history").json()
-
-    assert [r["model_name"] for r in items] == ["AllowedModel"]
+    assert body["total_consumed"] == pytest.approx(50.0)
 
 
 # ---------------------------------------------------------------------------
@@ -458,7 +136,7 @@ def test_api_post_account_creates_row(tmp_data_dir):
     read should see it. Display name defaults to the email local-part."""
     s = Storage(tmp_data_dir / "test.db")
     s.init()
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -480,7 +158,7 @@ def test_api_post_account_defaults_display_name(tmp_data_dir):
     """Omitting display_name should fall back to the local-part of the email."""
     s = Storage(tmp_data_dir / "test.db")
     s.init()
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -495,7 +173,7 @@ def test_api_post_account_duplicate_returns_409(tmp_data_dir):
     s = Storage(tmp_data_dir / "test.db")
     s.init()
     s.upsert_account("a@x.com", "Original")
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -514,7 +192,7 @@ def test_api_post_account_invalid_email_returns_422(tmp_data_dir):
     """Malformed email triggers Pydantic validation → 422."""
     s = Storage(tmp_data_dir / "test.db")
     s.init()
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -526,7 +204,7 @@ def test_api_post_account_normalizes_email_case(tmp_data_dir):
     """Email is stored lowercased so subsequent lookups are case-insensitive."""
     s = Storage(tmp_data_dir / "test.db")
     s.init()
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -557,7 +235,7 @@ def test_api_delete_account_removes_row_and_cascades(tmp_data_dir):
         input_tokens=5, output_tokens=7,
     )
     snap_id = s.save_snapshot(start_time=1, end_time=2, payload_json="{}", request_meta="t")
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -584,7 +262,7 @@ def test_api_delete_account_idempotent(tmp_data_dir):
     re-fetch on a flaky network should not show a misleading error."""
     s = Storage(tmp_data_dir / "test.db")
     s.init()
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -596,7 +274,7 @@ def test_api_delete_account_idempotent(tmp_data_dir):
 def test_api_delete_account_invalid_email_returns_422(tmp_data_dir):
     s = Storage(tmp_data_dir / "test.db")
     s.init()
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -610,7 +288,7 @@ def test_api_delete_account_lowercases_path(tmp_data_dir):
     s = Storage(tmp_data_dir / "test.db")
     s.init()
     s.upsert_account("a@x.com", "A")
-    cfg = _make_config()
+    cfg = _cfg()
     app = create_app(cfg=cfg, storage=s)
 
     with TestClient(app) as client:
@@ -773,7 +451,6 @@ def test_api_post_eml_returns_eml_bytes(tmp_data_dir):
             smtp_user="u@x.com", from_addr="u@x.com",
             recipients=[],
         ),
-        included_model_names={"GLM-5.1"},
     )
     s.upsert_model_usage(
         email="a@x.com", cycle_start="2026-06-10", cycle_end="2026-07-06",
@@ -818,7 +495,6 @@ def test_api_get_eml_returns_eml_bytes(tmp_data_dir):
             smtp_user="u@x.com", from_addr="u@x.com",
             recipients=[],
         ),
-        included_model_names={"GLM-5.1"},
     )
     s.upsert_model_usage(
         email="a@x.com", cycle_start="2026-06-10", cycle_end="2026-07-06",
@@ -854,7 +530,6 @@ def test_api_get_eml_with_no_recipients_uses_configured(tmp_data_dir):
             smtp_user="u@x.com", from_addr="u@x.com",
             recipients=["configured@x.com"],
         ),
-        included_model_names={"GLM-5.1"},
     )
     s.upsert_model_usage(
         email="a@x.com", cycle_start="2026-06-10", cycle_end="2026-07-06",

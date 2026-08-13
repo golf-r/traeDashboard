@@ -19,7 +19,7 @@ def _cfg(**kw) -> Config:
     return Config(**defaults)
 
 
-def _seed_cycle(storage: Storage, email: str, *, amount_total=0.0, input_tokens=0, output_tokens=0, model_name="M"):
+def _seed_cycle(storage: Storage, email: str, *, amount_total=0.0, amount_basic=0.0, amount_pay_go=0.0, currency="CNY", input_tokens=0, output_tokens=0, model_name="M"):
     from trae_dashboard.cycle import current_cycle_window
     s_dt, e_dt = current_cycle_window()
     storage.upsert_account(email, email.split("@")[0])
@@ -27,7 +27,8 @@ def _seed_cycle(storage: Storage, email: str, *, amount_total=0.0, input_tokens=
         email=email, cycle_start=s_dt.date().isoformat(), cycle_end=e_dt.date().isoformat(),
         model_name=model_name, model_type="Chat", model_source="Trae",
         input_tokens=input_tokens, output_tokens=output_tokens,
-        amount_total=amount_total,
+        amount_total=amount_total, amount_basic=amount_basic, amount_pay_go=amount_pay_go,
+        currency=currency,
     )
 
 
@@ -35,7 +36,7 @@ def test_api_accounts_returns_amount(tmp_data_dir):
     db = tmp_data_dir / "test.db"
     s = Storage(db)
     s.init()
-    _seed_cycle(s, "a@x.com", amount_total=50.0, input_tokens=10, output_tokens=20)
+    _seed_cycle(s, "a@x.com", amount_total=50.0, amount_basic=4.0, amount_pay_go=1.0, input_tokens=10, output_tokens=20)
     cfg = _cfg(accounts=[Account("a@x.com", "A")], per_account_quota=120.0)
     app = create_app(cfg=cfg, storage=s)
     with TestClient(app) as client:
@@ -49,13 +50,15 @@ def test_api_accounts_returns_amount(tmp_data_dir):
     assert data[0]["quota_used_pct"] == pytest.approx(41.67, abs=0.01)
     # per-model breakdown includes amount_total
     assert data[0]["models"][0]["amount_total"] == pytest.approx(50.0)
+    assert data[0]["models"][0]["amount_basic"] == pytest.approx(4.0)
+    assert data[0]["models"][0]["amount_pay_go"] == pytest.approx(1.0)
 
 
 def test_api_account_history_returns_amount(tmp_data_dir):
     db = tmp_data_dir / "test.db"
     s = Storage(db)
     s.init()
-    _seed_cycle(s, "a@x.com", amount_total=30.0)
+    _seed_cycle(s, "a@x.com", amount_total=30.0, amount_basic=20.0, amount_pay_go=10.0, currency="CNY")
     cfg = _cfg(accounts=[Account("a@x.com")])
     app = create_app(cfg=cfg, storage=s)
     with TestClient(app) as client:
@@ -64,6 +67,9 @@ def test_api_account_history_returns_amount(tmp_data_dir):
         items = r.json()
     assert len(items) == 1
     assert items[0]["amount_total"] == pytest.approx(30.0)
+    assert items[0]["amount_basic"] == pytest.approx(20.0)
+    assert items[0]["amount_pay_go"] == pytest.approx(10.0)
+    assert items[0]["currency"] == "CNY"
 
 
 def test_api_health(tmp_data_dir):
@@ -92,6 +98,8 @@ def test_api_status_returns_amount_fields(tmp_data_dir):
                 "total_accounts", "accounts_with_data",
                 "total_quota", "total_consumed", "total_remaining", "utilization_pct"):
         assert key in body
+    for key in ("cycle_start", "cycle_end", "nextResetAt", "per_account_quota"):
+        assert key in body, f"missing key {key}"
     assert "db_path" not in body
     assert body["total_accounts"] == 1
     assert body["accounts_with_data"] == 1

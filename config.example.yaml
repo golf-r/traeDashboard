@@ -17,44 +17,10 @@ db_path: data/dashboard.db
 # How often (minutes) to fetch fresh data
 fetch_interval_minutes: 60
 
-# Per-account monthly token quota (50M default).
+# Per-account monthly quota in CNY (120 yuan default).
 # Company total = per_account_quota * number of accounts.
-per_account_quota: 50000000
-
-# Strict-match allowlist of official model names (default = built-in list).
-# Rows whose API `model_name` is not in this list are not persisted by the
-# collector and are ignored by dashboard reads. Strict matching: no case
-# folding, no alias normalization. Use the exact API model_name strings.
-included_model_names:
-  - GLM-5.1
-  - GLM-5-Turbo
-  - DeepSeek-V4-Pro
-  - Doubao-Seed-Code
-  - GLM-5V-Turbo
-  - Doubao-Seed-2.1-Pro
-  - Doubao-Seed-2.1-Turbo
-  - Doubao-Seed-2.0-Code
-  - GLM-5.2
-  - GLM-5
-  - GLM-4.7
-  - MiniMax-M3
-  - MiniMax-M2.7
-  - Qwen3.7-Plus
-  - Qwen3-Coder-Next
-  - Kimi-K2.7-Code
-  - Kimi-K2.6
-  - Kimi-K2.5
-  - DeepSeek-V4-Flash
-  - DeepSeek-V3.2
-
-# Optional: per-model display-time weight multiplier.
-# Applied on read in storage so DB rows keep raw API values (audit trail
-# intact). Useful when the vendor's admin UI displays a different (e.g.
-# halved) token count for a model than what the API returns.
-# Keys must match the canonical names in `included_model_names` above.
-# Omit this section to use the built-in default (Doubao-Seed-Code: 0.5).
-display_weights:
-  Doubao-Seed-Code: 0.5
+# Only Trae built-in models (model_source == "Trae") are counted.
+per_account_quota: 120.0
 
 # Account list (up to 20)
 accounts:

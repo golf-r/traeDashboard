@@ -1,0 +1,55 @@
+src/trae_dashboard/static/style.css
+  s_964eda746b7a97::t_6cb3e9c2db5878 719
+src/trae_dashboard/static/index.html
+  s_964eda746b7a97::t_df79fd6da4ef07 1107
+  s_964eda746b7a97::t_a83120eeed6fc3 986,990,992,997-999,1008,1013
+  s_964eda746b7a97::t_e9f138fc326ef8 358,360,362,366
+  s_964eda746b7a97::t_8d1daaa5a3dc3c 239-240,252,258-262
+  s_964eda746b7a97::t_b6738cdca0c79d 1067
+  s_964eda746b7a97::t_2e18a935a24495 835,849
+  s_964eda746b7a97::t_ba609a82c4509e 908,917,933-935
+  s_964eda746b7a97::t_917b4b4bbc8c27 1263
+  s_964eda746b7a97::t_3f5a0e36d776fc 1497,1514
+  s_964eda746b7a97::t_43f960f331d1cc 573-574,579-582
+  s_964eda746b7a97::t_c98533e3b37823 862
+  s_964eda746b7a97::t_525a8b73ec2fcc 1149
+  s_964eda746b7a97::t_e6b6dae246d401 2224
+  s_964eda746b7a97::t_e01faacfd08b1a 241
+  s_964eda746b7a97::t_43e19a9dc53122 1470,1475
+  s_964eda746b7a97::t_2f915c77cab3c1 168
+src/trae_dashboard/static/app.js
+  s_964eda746b7a97::t_893027ecae9d84 483-485,489-492
+  s_964eda746b7a97::t_fdf6ca4d5495e6 424
+  s_964eda746b7a97::t_618e29570f0a94 45-56
+  s_964eda746b7a97::t_e2f4ff4a910065 525,527,530-531
+  s_964eda746b7a97::t_781a3247877dc8 694
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "9c9490287487f2dcd70036fb9ecdcbd43ddc02d3",
+  "prompts": {},
+  "sessions": {
+    "s_964eda746b7a97": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a54d678921e1b1e318c9dad",
+        "model": "glm-5.2"
+      },
+      "human_author": "shichenchen <shichenchen@huawei.com>",
+      "custom_attributes": {
+        "tool_type": "builtin",
+        "edit_kind": "file_edit",
+        "external_session_id": "6a54d678921e1b1e318c9dad",
+        "client_type": "ide",
+        "session_id": "6a54d678921e1b1e318c9dad",
+        "operation_id": "6a7d83eac35358764ad9f00d",
+        "dedupe_key": "6a54d678921e1b1e318c9dad:6a7d83eac35358764ad9f00d:afterEdit:077253d3",
+        "runtime_client": "trae-tob-git-ai",
+        "source_scene": "agent",
+        "tool_use_id": "6a7d83eac35358764ad9f00d",
+        "tool_id": "icube:applyChatSnapshotPatch"
+      }
+    }
+  }
+}

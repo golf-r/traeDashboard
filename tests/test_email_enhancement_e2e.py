@@ -36,7 +36,6 @@ def test_email_enhancement_full_flow(tmp_data_dir: Path):
     cfg = Config(
         openapi_base="x", auth_endpoint="/auth", app_id="i", app_secret="s", accounts=[],
         email=EmailConfig(enabled=False, smtp_password_env="SMTP_PASSWORD_E2E"),
-        included_model_names={"GLM-5.1"},
     )
     app = create_app(cfg=cfg, storage=s, config_path=cfg_file, env_path=env_file)
     with TestClient(app) as c:

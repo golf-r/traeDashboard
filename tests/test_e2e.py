@@ -186,7 +186,7 @@ def test_api_returns_accounts_after_fetch(e2e_workspace):
         assert isinstance(accounts, list)
         assert len(accounts) >= 1, f"expected >=1 account, got {accounts}"
         first = accounts[0]
-        for key in ("email", "input_tokens", "output_tokens", "consumed"):
+        for key in ("email", "input_tokens", "output_tokens", "amount_total"):
             assert key in first, f"missing {key} in {first}"
 
 

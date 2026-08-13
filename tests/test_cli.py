@@ -2,8 +2,6 @@
 from __future__ import annotations
 import pytest
 import sqlite3
-import subprocess
-import sys
 from pathlib import Path
 
 from trae_dashboard.cli import main, _build_parser

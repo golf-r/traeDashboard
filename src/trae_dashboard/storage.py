@@ -95,14 +95,16 @@ class Storage:
         # Migration: add amount columns if missing (clear old data first
         # — old rows lack amount values and would skew totals).
         cols = {r["name"] for r in self.conn.execute("PRAGMA table_info(model_usage)")}
-        if "amount_total" not in cols:
+        needed = [
+            ("amount_total", "REAL DEFAULT 0"),
+            ("amount_basic", "REAL DEFAULT 0"),
+            ("amount_pay_go", "REAL DEFAULT 0"),
+            ("currency", "TEXT DEFAULT 'CNY'"),
+        ]
+        missing = [(c, d) for c, d in needed if c not in cols]
+        if missing:
             self.conn.execute("DELETE FROM model_usage")
-            for col, decl in [
-                ("amount_total", "REAL DEFAULT 0"),
-                ("amount_basic", "REAL DEFAULT 0"),
-                ("amount_pay_go", "REAL DEFAULT 0"),
-                ("currency", "TEXT DEFAULT 'CNY'"),
-            ]:
+            for col, decl in missing:
                 self.conn.execute(f"ALTER TABLE model_usage ADD COLUMN {col} {decl}")
 
     def close(self) -> None:
@@ -306,7 +308,7 @@ class Storage:
         return out
 
     def get_total_amount(self, cycle_start: str) -> float:
-        """当前周期所有启用账号的金额消耗总和."""
+        """Total amount consumption across all enabled accounts for the given cycle."""
         row = self.conn.execute(
             "SELECT COALESCE(SUM(m.amount_total), 0) AS total "
             "FROM model_usage m JOIN accounts a ON a.email = m.email "

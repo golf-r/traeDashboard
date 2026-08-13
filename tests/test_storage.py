@@ -1,12 +1,11 @@
 """Tests for trae_dashboard.storage."""
 from __future__ import annotations
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 
 import pytest
 
-from trae_dashboard.storage import Storage, ModelUsage
+from trae_dashboard.storage import Storage
 
 
 @pytest.fixture

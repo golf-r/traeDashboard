@@ -1,0 +1,32 @@
+tests/test_cli.py
+  s_964eda746b7a97::t_51a60a5bb22513 54-55,69,83,87-88,116,128,132-133,148,167-168
+src/trae_dashboard/cli.py
+  s_964eda746b7a97::t_6e3c16df4c0618 121
+  s_964eda746b7a97::t_1726da07a209cb 207,213,228,246
+  s_964eda746b7a97::t_03308315b00337 157,162,173-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "7ff32da097c7a157561f14c245e24a2c901ae2fb",
+  "prompts": {},
+  "sessions": {
+    "s_964eda746b7a97": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a54d678921e1b1e318c9dad",
+        "model": "glm-5.2__max"
+      },
+      "human_author": "shichenchen <shichenchen@huawei.com>",
+      "custom_attributes": {
+        "tool_use_id": "6a7d7fcfc35358764ad9eecc",
+        "session_id": "6a54d678921e1b1e318c9dad",
+        "external_session_id": "6a54d678921e1b1e318c9dad",
+        "edit_kind": "bash",
+        "display_model_name": "GLM-5.2",
+        "operation_id": "6a7d7fcfc35358764ad9eecc",
+        "tool_name": "RunCommand"
+      }
+    }
+  }
+}

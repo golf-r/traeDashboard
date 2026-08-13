@@ -1,0 +1,32 @@
+tests/test_e2e.py
+  s_964eda746b7a97::t_2d4c265c44b765 189
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "f15f6c7df90479ff5528cd41ec82e94f85045dd3",
+  "prompts": {},
+  "sessions": {
+    "s_964eda746b7a97": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a54d678921e1b1e318c9dad",
+        "model": "glm-5.2"
+      },
+      "human_author": "shichenchen <shichenchen@huawei.com>",
+      "custom_attributes": {
+        "session_id": "6a54d678921e1b1e318c9dad",
+        "edit_kind": "file_edit",
+        "client_type": "ide",
+        "source_scene": "agent",
+        "tool_id": "icube:applyChatSnapshotPatch",
+        "tool_type": "builtin",
+        "operation_id": "6a7d80b6c35358764ad9ef24",
+        "dedupe_key": "6a54d678921e1b1e318c9dad:6a7d80b6c35358764ad9ef24:afterEdit:b1e8d977",
+        "external_session_id": "6a54d678921e1b1e318c9dad",
+        "runtime_client": "trae-tob-git-ai",
+        "tool_use_id": "6a7d80b6c35358764ad9ef24"
+      }
+    }
+  }
+}

@@ -1,11 +1,11 @@
 # Trae Token Dashboard
 
-> 一句话:**看 Trae 企业版各账号每个计费周期的 token 消耗,顺便每天自动邮件汇总。**
+> 一句话:**看 Trae 企业版各账号每个计费周期的金额消耗(默认 120 元/人/月),顺便每天自动邮件汇总。**
 
 ![Dashboard 截图](docs/screenshots/dashboard.png)
 
-本地运行的 Web 仪表盘,展示公司所有 Trae 企业版账号的 token 用量,
-并支持每日自动把汇总报告通过邮件发给指定收件人。
+本地运行的 Web 仪表盘,展示公司所有 Trae 企业版账号的金额用量(CNY),
+并支持每日自动把汇总报告通过邮件发给指定收件人。支持源码运行与 **Docker 一键部署**。
 
 ## 目录
 
@@ -13,7 +13,8 @@
 - [界面长啥样](#界面长啥样)
 - [快速开始](#快速开始)
   - [前置要求](#前置要求)
-  - [3 步跑起来](#3-步跑起来)
+  - [方式 A:Docker 一键部署(推荐)](#方式-a-docker-一键部署推荐)
+  - [方式 B:源码运行](#方式-b-源码运行)
 - [配置项](#配置项)
 - [日常用法](#日常用法)
 - [邮件报告](#邮件报告)
@@ -24,10 +25,10 @@
 
 ## 它能做什么
 
-- 📊 **实时面板**:总消耗、总配额、使用率、按账号排行;每账号点开看各模型明细
+- 📊 **实时面板**:总消耗(¥)、总配额、使用率、按账号排行;每账号点开看各模型明细
 - 📅 **按周期统计**:对齐 Trae 计费周期(每月 10 号 00:00 UTC 自动重置)
-- 💰 **配额追踪**:每账号 50M 默认配额;公司总额 = per_account × 监控账号数
-- ⚖️ **展示口径对齐**:Doubao 系列模型按 0.5 系数折算显示(和 Trae 官网一致)
+- 💰 **配额追踪**:每账号 120 元默认配额;公司总额 = per_account × 监控账号数
+- 🧮 **金额口径**:按实际计费金额(`amount_total`)统计,只计 Trae 内置模型(`model_source == "Trae"`);tooltip 可看每模型明细
 - 📧 **每日邮件报告**:每天定时把汇总表发到指定邮箱
 - 🛠 **Web 端配置**:不用改文件,在 dashboard 弹窗里加收件人 / 改 SMTP / 下载 `.eml` 自己发
 - 💾 **本地存储**:SQLite 文件,数据全在你机器上
@@ -43,7 +44,7 @@
 
 ![报告弹窗](docs/screenshots/report_modal.png)
 
-(截图是当前真实运行画面,带脱敏)
+(截图可能略旧,界面以实际运行为准)
 
 ## 快速开始
 
@@ -51,12 +52,49 @@
 
 | 依赖 | 最低版本 | 备注 |
 |---|---|---|
-| Python | 3.11+ | 项目用了 `tomllib` 等 3.11 特性 |
+| Docker Desktop / Engine | — | **方式 A(推荐)** 一键部署用;没有也可走方式 B 源码运行 |
+| Python | 3.11+ | 仅方式 B(源码运行)需要 |
 | Trae 企业版账号 | — | 需要「管理员」或「报表查看」角色 |
 | SMTP 服务器 | — | 只在要发邮件报告时需要,QQ/163/Gmail 都行 |
 | 操作系统 | Windows / macOS / Linux | 任务计划部署在 Windows / cron 部署在 Unix |
 
-### 3 步跑起来
+### 方式 A:Docker 一键部署(推荐)
+
+不用装 Python,一条命令起服务,适合快速上手 / 日常使用。
+
+```bash
+# 1. 克隆 + 生成配置文件
+git clone <this-repo>
+cd traeDashboard
+cp config.example.yaml config.yaml        # Windows: copy config.example.yaml config.yaml
+cp .env.example .env                      # 已有真实 .env 则跳过
+
+# 2. 填两个文件(密钥不要提交进 git)
+#    config.yaml:accounts 填要监控的邮箱列表;email.* 填 SMTP(要发邮件报告时)
+#    .env:填 TRAE_APP_ID / TRAE_APP_SECRET
+#    保留 .env.example 里的 TRAE_DASHBOARD_MOCK=1 可先用假数据看界面,不连真实 API
+
+# 3. 一键构建并启动 → 打开 http://127.0.0.1:8888
+docker compose up -d --build
+```
+
+浏览器访问 `http://127.0.0.1:8888`,看到 dashboard = 成功。
+
+**行为说明:**
+
+- 容器启动时先自动拉一次数据(`fetch`),之后按 `fetch_interval_minutes` 后台定时采集(`--with-scheduler`)。
+- `config.yaml` / `.env` 直接挂载自宿主机,**可写** —— 面板里的「账号管理 / 邮件设置」写回功能在容器内照常生效。
+- SQLite 数据存在 named volume `trae-dashboard-data` 里,`docker compose down` 不丢。
+- 端口映射 `127.0.0.1:8888:8765`:仅本机可访问(容器内绑 0.0.0.0,外部由 compose 收敛到本机)。
+- 邮件日报**不在**容器内调度,保持外部 cron / 手动触发(与源码部署一致)。
+- 常用命令:`docker compose logs -f` 看日志、`docker compose down` 停止(数据保留)、`docker compose up -d` 再次启动。
+
+> Linux 主机小提示:若面板写回配置时遇到权限问题(挂载文件属主是 root),执行
+> `sudo chown 1000:1000 config.yaml .env` 后重启容器即可(Docker Desktop 一般无此问题)。
+
+### 方式 B:源码运行
+
+适合要改代码 / 二次开发。默认端口 8765。
 
 ```bash
 # 第 1 步:装依赖
@@ -98,8 +136,7 @@ python -m trae_dashboard serve      # 起 Web 服务 → http://127.0.0.1:8765
 | `auth_endpoint` | ✓ | `/openapi/v1/auth/access_token` | 鉴权端点(相对路径) |
 | `db_path` | — | `data/dashboard.db` | SQLite 文件路径 |
 | `fetch_interval_minutes` | — | `60` | 后台拉取间隔(仅 `--with-scheduler` 模式生效) |
-| `per_account_quota` | — | `50000000` | 每账号配额(50M tokens) |
-| `included_model_names` | — | 内置官方列表 | 严格白名单;非列表中的 API 响应不持久化 |
+| `per_account_quota` | — | `120.0` | 每账号月度配额(元);公司总额 = per_account × 账号数 |
 | `accounts[]` | ✓ | (空) | **要监控的邮箱列表,建议 ≤ 20** |
 | `email.enabled` | — | `false` | 是否启用邮件报告 |
 | `email.smtp_host` | ⚠ | — | SMTP 服务器;启用 email 时必填 |
@@ -212,7 +249,7 @@ python -m trae_dashboard report --dry-run > /tmp/preview.html
 |---|---|---|
 | `/api/health` | GET | 健康检查,返回 `{ok: true}` |
 | `/api/version` | GET | 当前服务 commit SHA(排查"是不是最新代码") |
-| `/api/status` | GET | 周期窗口、quota、consumed、remaining、利用率、最近抓取时间 |
+| `/api/status` | GET | 周期窗口、总额(¥)、剩余、利用率、最近抓取时间 |
 | `/api/accounts` | GET | 每账号周期总额 + 配额使用率 + per-model 明细(给 tooltip 用) |
 | `/api/accounts` | POST | 新增监控账号(`{email, display_name?}`),重复返 409 |
 | `/api/accounts/{email}` | DELETE | 删除账号(级联删除其 model_usage,保留 snapshots),幂等 |
@@ -247,7 +284,7 @@ flowchart TB
         Cycle["cycle<br/>周期窗口"]
         Client["client + auth<br/>OpenAPI + Bearer"]
         Collector["collector"]
-        Storage["storage<br/>SQLite + display_weights"]
+        Storage["storage<br/>SQLite + amount_total"]
         Sched["scheduler<br/>APScheduler"]
         Report["report<br/>HTML + SMTP + .eml"]
         API["api<br/>FastAPI 路由"]
@@ -310,7 +347,7 @@ flowchart TB
 **三大数据流**:
 
 1. **拉数据**:Trae OpenAPI → `client.py` → `collector.py` → `storage.py` → SQLite。触发方式:`serve --with-scheduler` 每小时,或 `python -m trae_dashboard fetch` 手动。
-2. **展示数据**:浏览器 → `index.html`(静态)→ `/api/*` → `storage.py`(读路径应用 `display_weights` 加权)→ SQLite。
+2. **展示数据**:浏览器 → `index.html`(静态)→ `/api/*` → `storage.py`(读路径输出金额 `amount_total`)→ SQLite。
 3. **邮件报告**:触发源 → `report.py` → `storage.py`(读当前周期)+ SMTP 发送 / `.eml` 导出。
 
 完整版架构图(节点说明 + 字段级注释)见 [`docs/architecture.md`](docs/architecture.md)。
@@ -358,7 +395,7 @@ python -m trae_dashboard serve --port 8000
 <summary><b>Q: 数据看起来不对 / 跟 Trae 官网数字不一致</b></summary>
 
 - 确认 `config.yaml` 里 `accounts[]` 跟 Trae 后台看的账号列表一致(大小写、域名)
-- `display_weights` 默认把 Doubao-Seed-Code × 0.5 — 这是为了跟官网 UI 一致;如果不想加权,把它改成空 dict
+- 展示口径是**金额(元)**,只统计 Trae 内置模型(`model_source == "Trae"`)
 - 周期窗口不对?今天是 7 号 < 10 号,看的是「上月 10 号 ~ 今天」的累计
 </details>
 
@@ -381,7 +418,7 @@ OpenAPI 单次请求限制 20 邮箱。代码内部按 20/批循环拉(见 `clie
 ### 测试
 
 ```bash
-pytest                              # 全部测试(应 171+ 通过)
+pytest                              # 全部测试(136 通过)
 pytest --cov=trae_dashboard         # 覆盖率
 ruff check src/ tests/              # lint
 black --check src/ tests/           # format
@@ -395,7 +432,7 @@ black --check src/ tests/           # format
 ### 设计文档
 
 - 架构详解:[`docs/architecture.md`](docs/architecture.md)
-- 计划 / 设计:[`docs/plans/`](docs/plans/)(`2026-07-16-email-report-enhancement-*.md` 是最近的邮件功能增强)
+- 计划 / 设计:[`docs/superpowers/plans/`](docs/superpowers/plans/)、[`docs/superpowers/specs/`](docs/superpowers/specs/)
 
 ### 故障自检
 
@@ -410,30 +447,3 @@ black --check src/ tests/           # format
 ## License
 
 MIT
-
-## Docker 一键部署
-
-> 需要本机装有 Docker Desktop(Windows/macOS)或 Docker Engine(Linux)。
-
-**前置:** 项目根目录先备好 `config.yaml` 和 `.env`(见「快速开始」第 2/3 步;没有的话先
-`cp config.example.yaml config.yaml`、`cp .env.example .env` 再填好)。
-
-```bash
-# 一键构建并启动 → http://127.0.0.1:8888
-docker compose up -d --build
-
-docker compose logs -f     # 看日志
-docker compose down        # 停止(数据保留在 named volume 里)
-docker compose up -d       # 再次启动
-```
-
-**行为说明:**
-
-- 容器启动时先自动拉一次数据(`fetch`),之后按 `fetch_interval_minutes` 后台定时采集(`--with-scheduler`)。
-- `config.yaml` / `.env` 直接挂载自宿主机,**可写** —— 面板里的「账号管理 / 邮件设置」写回功能在容器内照常生效。
-- SQLite 数据存在 named volume `trae-dashboard-data` 里,`docker compose down` 不丢。
-- 端口映射 `127.0.0.1:8888:8765`:仅本机可访问(容器内绑 0.0.0.0,外部由 compose 收敛到本机)。
-- 邮件日报**不在**容器内调度,保持外部 cron / 手动触发(与源码部署一致)。
-
-> Linux 主机小提示:若面板写回配置时遇到权限问题(挂载文件属主是 root),执行
-> `sudo chown 1000:1000 config.yaml .env` 后重启容器即可(Docker Desktop 一般无此问题)。

@@ -6,9 +6,17 @@ services:
     ports:
       - "127.0.0.1:8888:8765"      # 仅本机可访问 → http://127.0.0.1:8888
     volumes:
-      - ./config.yaml:/app/config.yaml   # 可写,面板可管理
-      - ./.env:/app/.env                 # 可写,SMTP 密码保存
-      - trae-dashboard-data:/app/data    # SQLite 持久化
+      - type: bind
+        source: ./config.yaml
+        target: /app/config.yaml
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./.env
+        target: /app/.env
+        bind:
+          create_host_path: false
+      - trae-dashboard-data:/app/data
     environment:
       - TZ=Asia/Shanghai
     restart: unless-stopped

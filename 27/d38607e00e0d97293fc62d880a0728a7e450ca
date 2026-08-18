@@ -1,0 +1,32 @@
+docs/superpowers/plans/2026-08-13-docker-deployment.md
+  s_964eda746b7a97::t_77772112da5b97 1-414
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "27d38607e00e0d97293fc62d880a0728a7e450ca",
+  "prompts": {},
+  "sessions": {
+    "s_964eda746b7a97": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a54d678921e1b1e318c9dad",
+        "model": "DeepSeek-V4-Flash-Official"
+      },
+      "human_author": "shichenchen <shichenchen@huawei.com>",
+      "custom_attributes": {
+        "session_id": "6a54d678921e1b1e318c9dad",
+        "edit_kind": "file_edit",
+        "tool_type": "builtin",
+        "client_type": "ide",
+        "external_session_id": "6a54d678921e1b1e318c9dad",
+        "tool_id": "icube:applyChatSnapshotPatch",
+        "operation_id": "6a83b11cc35358764ad9f2ae",
+        "dedupe_key": "6a54d678921e1b1e318c9dad:6a83b11cc35358764ad9f2ae:afterEdit:59d2cb28",
+        "tool_use_id": "6a83b11cc35358764ad9f2ae",
+        "runtime_client": "trae-tob-git-ai",
+        "source_scene": "agent"
+      }
+    }
+  }
+}

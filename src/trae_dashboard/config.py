@@ -12,7 +12,8 @@ import yaml
 from dotenv import load_dotenv
 
 # Load .env once at import time; safe to call multiple times.
-load_dotenv()
+load_dotenv()                       # source-tree layout: finds .env near this file
+load_dotenv(Path.cwd() / ".env")    # installed (Docker) layout: container cwd is /app
 
 
 @dataclass

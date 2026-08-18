@@ -1,0 +1,35 @@
+# VCS
+.git
+.gitignore
+
+# 本地密钥/配置(由 compose bind mount 提供,不烧进镜像)
+config.yaml
+.env
+*.env
+
+# 运行时数据(SQLite 走 named volume)
+data
+
+# 测试与文档(镜像不需要)
+tests
+docs
+
+# Python 构建产物
+.venv
+venv
+__pycache__
+*.py[cod]
+*.egg-info
+build
+dist
+.pytest_cache
+.coverage
+*.log
+
+# IDE / agent 状态
+.idea
+.vscode
+.agents
+.claude
+.trae
+.superpowers

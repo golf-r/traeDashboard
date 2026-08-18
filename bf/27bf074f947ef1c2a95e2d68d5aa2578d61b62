@@ -1,0 +1,32 @@
+.dockerignore
+  s_964eda746b7a97::t_d15bc37bfa742c 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "bf27bf074f947ef1c2a95e2d68d5aa2578d61b62",
+  "prompts": {},
+  "sessions": {
+    "s_964eda746b7a97": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a54d678921e1b1e318c9dad",
+        "model": "DeepSeek-V4-Flash-Official"
+      },
+      "human_author": "shichenchen <shichenchen@huawei.com>",
+      "custom_attributes": {
+        "operation_id": "6a83b354c35358764ad9f39f",
+        "source_scene": "agent",
+        "tool_use_id": "6a83b354c35358764ad9f39f",
+        "dedupe_key": "6a54d678921e1b1e318c9dad:6a83b354c35358764ad9f39f:afterEdit:cb16cd26",
+        "tool_id": "icube:streaming",
+        "runtime_client": "trae-tob-git-ai",
+        "external_session_id": "6a54d678921e1b1e318c9dad",
+        "tool_type": "builtin",
+        "client_type": "ide",
+        "session_id": "6a54d678921e1b1e318c9dad",
+        "edit_kind": "file_edit"
+      }
+    }
+  }
+}

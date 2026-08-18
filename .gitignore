@@ -42,6 +42,7 @@ config.yaml
 .agents/
 .claude/
 .trae/
+.superpowers/
 skills-lock.json
 
 # Personal screenshots / PDF notes (Snipaste captures, dashboard snapshots)

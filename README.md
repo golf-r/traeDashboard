@@ -14,6 +14,7 @@
 - [快速开始](#快速开始)
   - [前置要求](#前置要求)
   - [方式 A:Docker 一键部署(推荐)](#方式-a-docker-一键部署推荐)
+  - [方式 A₂:直接拉镜像运行](#方式-a₂直接拉镜像运行)
   - [方式 B:源码运行](#方式-b-源码运行)
 - [配置项](#配置项)
 - [日常用法](#日常用法)
@@ -71,8 +72,7 @@ cp .env.example .env                      # 已有真实 .env 则跳过
 
 # 2. 填两个文件(密钥不要提交进 git)
 #    config.yaml:accounts 填要监控的邮箱列表;email.* 填 SMTP(要发邮件报告时)
-#    .env:填 TRAE_APP_ID / TRAE_APP_SECRET
-#    保留 .env.example 里的 TRAE_DASHBOARD_MOCK=1 可先用假数据看界面,不连真实 API
+#    .env:必填 TRAE_APP_ID / TRAE_APP_SECRET(从 https://console.enterprise.trae.cn 获取)
 
 # 3. 一键构建并启动 → 打开 http://127.0.0.1:8888
 docker compose up -d --build
@@ -91,6 +91,58 @@ docker compose up -d --build
 
 > Linux 主机小提示:若面板写回配置时遇到权限问题(挂载文件属主是 root),执行
 > `sudo chown 1000:1000 config.yaml .env` 后重启容器即可(Docker Desktop 一般无此问题)。
+
+### 方式 A₂:直接拉镜像运行(不克隆仓库)
+
+如果你只想要现成镜像、不想留整套代码仓库,可以直接 `docker run`。
+**注意:镜像内不内置任何配置模板**——`config.yaml` 和 `.env` 必须由你自己准备,并用 `-v` 挂载进容器(缺任何一个容器都无法正常启动)。
+
+```bash
+# 1. 拉镜像(把 <image> 换成你的镜像地址)
+docker pull <image>
+
+# 2. 准备两个配置文件 —— 模板不在镜像里,要从代码仓拿
+#    (推荐)克隆仓库拿模板:
+git clone <this-repo>
+cd traeDashboard
+cp config.example.yaml config.yaml        # Windows: copy config.example.yaml config.yaml
+cp .env.example .env
+#    或只下载代码仓里的 config.example.yaml / .env.example 两个 raw 文件,放任意目录
+
+# 3. 编辑两个文件(必改)
+#    config.yaml:accounts 填要监控的邮箱列表(其余项一般可先不动)
+#    .env:TRAE_APP_ID / TRAE_APP_SECRET 必填;SMTP_PASSWORD 只在要发邮件报告时填
+
+# 4. 启动 —— 把两份配置 bind 挂载进容器
+docker run -d --name trae-dashboard \
+  -p 8888:8765 \
+  -v "$(pwd)/config.yaml:/app/config.yaml" \
+  -v "$(pwd)/.env:/app/.env" \
+  -v trae-dashboard-data:/app/data \
+  -e TZ=Asia/Shanghai \
+  --restart unless-stopped \
+  <image>
+```
+
+Windows PowerShell 用 `${PWD}`:
+
+```powershell
+docker run -d --name trae-dashboard `
+  -p 8888:8765 `
+  -v "${PWD}\config.yaml:/app/config.yaml" `
+  -v "${PWD}\.env:/app/.env" `
+  -v trae-dashboard-data:/app/data `
+  -e TZ=Asia/Shanghai `
+  --restart unless-stopped `
+  <image>
+```
+
+访问 `http://127.0.0.1:8888`,看到 dashboard = 成功。
+
+**要点:**
+- 两份配置是 **bind 挂载**(容器内外是同一份文件,可写):面板里的「账号管理 / 邮件设置」写回直接写进你本地文件,无需重启;但你**手动改文件**里的启动期配置(如 `accounts`、`per_account_quota`)后,需 `docker restart trae-dashboard` 生效。
+- SQLite 数据放 named volume `trae-dashboard-data`,`docker rm` 容器不丢;彻底清空再 `docker volume rm trae-dashboard-data`。
+- 与「方式 A」的区别:方式 A 在本地 `docker compose up --build` 从源码构建镜像,适合要拉最新代码 / 二次开发;本方式直接用发布好的镜像,不依赖源码。
 
 ### 方式 B:源码运行
 

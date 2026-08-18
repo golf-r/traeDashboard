@@ -1,0 +1,23 @@
+services:
+  trae-dashboard:
+    build: .
+    image: trae-dashboard:latest
+    container_name: trae-dashboard
+    ports:
+      - "127.0.0.1:8888:8765"      # 仅本机可访问 → http://127.0.0.1:8888
+    volumes:
+      - ./config.yaml:/app/config.yaml   # 可写,面板可管理
+      - ./.env:/app/.env                 # 可写,SMTP 密码保存
+      - trae-dashboard-data:/app/data    # SQLite 持久化
+    environment:
+      - TZ=Asia/Shanghai
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=5)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  trae-dashboard-data:

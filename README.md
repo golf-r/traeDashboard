@@ -410,3 +410,30 @@ black --check src/ tests/           # format
 ## License
 
 MIT
+
+## Docker 一键部署
+
+> 需要本机装有 Docker Desktop(Windows/macOS)或 Docker Engine(Linux)。
+
+**前置:** 项目根目录先备好 `config.yaml` 和 `.env`(见「快速开始」第 2/3 步;没有的话先
+`cp config.example.yaml config.yaml`、`cp .env.example .env` 再填好)。
+
+```bash
+# 一键构建并启动 → http://127.0.0.1:8888
+docker compose up -d --build
+
+docker compose logs -f     # 看日志
+docker compose down        # 停止(数据保留在 named volume 里)
+docker compose up -d       # 再次启动
+```
+
+**行为说明:**
+
+- 容器启动时先自动拉一次数据(`fetch`),之后按 `fetch_interval_minutes` 后台定时采集(`--with-scheduler`)。
+- `config.yaml` / `.env` 直接挂载自宿主机,**可写** —— 面板里的「账号管理 / 邮件设置」写回功能在容器内照常生效。
+- SQLite 数据存在 named volume `trae-dashboard-data` 里,`docker compose down` 不丢。
+- 端口映射 `127.0.0.1:8888:8765`:仅本机可访问(容器内绑 0.0.0.0,外部由 compose 收敛到本机)。
+- 邮件日报**不在**容器内调度,保持外部 cron / 手动触发(与源码部署一致)。
+
+> Linux 主机小提示:若面板写回配置时遇到权限问题(挂载文件属主是 root),执行
+> `sudo chown 1000:1000 config.yaml .env` 后重启容器即可(Docker Desktop 一般无此问题)。

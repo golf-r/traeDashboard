@@ -1,0 +1,33 @@
+docs/superpowers/specs/2026-08-13-docker-deployment-design.md
+  s_964eda746b7a97::t_cedabed7c4626d 1-31,34,37-110
+  s_964eda746b7a97::t_cc29789b3a99a0 32-33,35-36
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.2",
+  "base_commit_sha": "9e56d98646599eb8febc93eb21457ceec5b6a1df",
+  "prompts": {},
+  "sessions": {
+    "s_964eda746b7a97": {
+      "agent_id": {
+        "tool": "trae",
+        "id": "6a54d678921e1b1e318c9dad",
+        "model": "DeepSeek-V4-Flash-Official"
+      },
+      "human_author": "shichenchen <shichenchen@huawei.com>",
+      "custom_attributes": {
+        "runtime_client": "trae-tob-git-ai",
+        "tool_use_id": "6a83b059c35358764ad9f294",
+        "tool_id": "icube:applyChatSnapshotPatch",
+        "session_id": "6a54d678921e1b1e318c9dad",
+        "client_type": "ide",
+        "source_scene": "agent",
+        "dedupe_key": "6a54d678921e1b1e318c9dad:6a83b059c35358764ad9f294:afterEdit:2a4822e1",
+        "tool_type": "builtin",
+        "operation_id": "6a83b059c35358764ad9f294",
+        "external_session_id": "6a54d678921e1b1e318c9dad",
+        "edit_kind": "file_edit"
+      }
+    }
+  }
+}
